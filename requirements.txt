@@ -1,0 +1,19 @@
+# Python 3.11+
+
+# Banco e dados (dados/)
+duckdb>=1.1
+pandas>=2.2
+pyarrow>=17
+
+# Coleta de sites (enriquecimento/)
+requests>=2.32
+beautifulsoup4>=4.12
+
+# Motor (motor/)
+sentence-transformers>=3.0
+python-dotenv>=1.0
+# SDK do LLM: adicionar quando o grupo escolher o provedor
+
+# App (app/) — se a stack escolhida for Streamlit
+streamlit>=1.40
+plotly>=5.24

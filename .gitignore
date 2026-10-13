@@ -1,0 +1,36 @@
+# --- Segredos ---
+.env
+
+# --- Dados (recriados localmente pelo script de dados/) ---
+dados/raw/
+dados/parquet/
+*.zip
+*.parquet
+*.duckdb
+*.duckdb.wal
+*.csv
+!contratos/exemplos/*.csv
+
+# --- Cache de coleta e modelos ---
+enriquecimento/cache/
+motor/cache/
+.cache/
+*.pkl
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# --- Editores e sistema ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Streamlit ---
+.streamlit/secrets.toml

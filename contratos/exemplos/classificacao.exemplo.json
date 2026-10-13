@@ -1,0 +1,15 @@
+{
+  "cnpj": "99000004000104",
+  "prompt_versao": "v0",
+  "fonte": "site",
+  "publico_atendido": "jovens adultos",
+  "produto_servico": "aulas de conversação em inglês em grupo",
+  "canal_atendimento": "online",
+  "problema_resolvido": "falta de prática de conversação",
+  "modelo_receita": "pacote_ou_mensalidade",
+  "posicionamento": "conversação descontraída",
+  "descricao_nicho": "escola de inglês online focada em conversação",
+  "confianca": "media",
+  "modelo_llm": "exemplo",
+  "gerado_em": "2026-10-13T12:00:00-03:00"
+}

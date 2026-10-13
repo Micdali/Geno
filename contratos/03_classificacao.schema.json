@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Classificação de uma empresa pelo LLM (contrato 3)",
+  "$comment": "v0 — PENDENTE: o grupo decide o conjunto final de atributos. A definição de produto usa público × produto/serviço × canal (base das lacunas); o relatório técnico usa problema, público, modelo de receita e posicionamento. Estão os dois aqui até a decisão.",
+  "type": "object",
+  "required": ["cnpj", "prompt_versao", "fonte", "publico_atendido", "produto_servico", "canal_atendimento", "confianca"],
+  "properties": {
+    "cnpj": { "type": "string", "pattern": "^[0-9A-Z]{14}$" },
+    "prompt_versao": { "type": "string", "examples": ["v1"] },
+    "fonte": { "enum": ["site", "site_arquivado", "so_nome"] },
+
+    "publico_atendido": { "type": "string", "description": "Para quem vende. 'indeterminado' se o site não diz." },
+    "produto_servico": { "type": "string", "description": "O que entrega, mais específico que o CNAE." },
+    "canal_atendimento": { "enum": ["presencial", "online", "delivery", "hibrido", "indeterminado"] },
+
+    "problema_resolvido": { "type": "string" },
+    "modelo_receita": {
+      "enum": ["assinatura", "venda_avulsa", "pacote_ou_mensalidade", "comissao_ou_marketplace", "publicidade", "outro", "indeterminado"]
+    },
+    "posicionamento": { "type": "string" },
+    "descricao_nicho": { "type": "string" },
+
+    "confianca": { "enum": ["alta", "media", "baixa"] },
+    "modelo_llm": { "type": "string" },
+    "gerado_em": { "type": "string", "format": "date-time" }
+  }
+}

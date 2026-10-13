@@ -1,0 +1,140 @@
+{
+  "ideia": "Quero abrir uma escola de inglês online para adultos acima de 40 anos que nunca estudaram o idioma, com aulas em grupo à noite.",
+  "recorte": {
+    "descricao": "Escola de idiomas · inglês · adultos 40+ iniciantes · online, ao vivo, em grupo",
+    "atributos": {
+      "publico": "adultos 40+ iniciantes",
+      "produto_servico": "aulas de inglês ao vivo em grupo",
+      "canal": "online"
+    },
+    "uf": null
+  },
+  "confianca": {
+    "nivel": "media",
+    "n_empresas": 47,
+    "n_com_site_classificado": 31,
+    "usou_setor_amplo": false,
+    "texto": "Confiança média — encontramos 47 empresas no recorte, 31 com site analisado. Empresas sem site podem oferecer algo parecido."
+  },
+  "concorrentes": [
+    {
+      "cnpj": "99000001000101",
+      "nome_exibicao": "Fluency Club",
+      "o_que_oferece": "Aulas individuais online",
+      "publico": "Adultos em geral",
+      "canal": "online",
+      "situacao": "ativa",
+      "ano_baixa": null,
+      "semelhanca": 0.82,
+      "site": null
+    },
+    {
+      "cnpj": "99000002000102",
+      "nome_exibicao": "Inglês Sem Pressa",
+      "o_que_oferece": "Curso gravado para iniciantes",
+      "publico": "Adultos iniciantes",
+      "canal": "online",
+      "situacao": "ativa",
+      "ano_baixa": null,
+      "semelhanca": 0.79,
+      "site": null
+    },
+    {
+      "cnpj": "99000003000103",
+      "nome_exibicao": "Talk40 Idiomas",
+      "o_que_oferece": "Grupos presenciais para 40+",
+      "publico": "Adultos 40+",
+      "canal": "presencial",
+      "situacao": "baixada",
+      "ano_baixa": 2024,
+      "semelhanca": 0.77,
+      "site": null
+    },
+    {
+      "cnpj": "99000004000104",
+      "nome_exibicao": "English Corner Online",
+      "o_que_oferece": "Conversação online em grupo",
+      "publico": "Jovens adultos",
+      "canal": "online",
+      "situacao": "ativa",
+      "ano_baixa": null,
+      "semelhanca": 0.74,
+      "site": null
+    },
+    {
+      "cnpj": "99000005000105",
+      "nome_exibicao": "Prime Speak",
+      "o_que_oferece": "Inglês corporativo",
+      "publico": "Profissionais",
+      "canal": "hibrido",
+      "situacao": "ativa",
+      "ano_baixa": null,
+      "semelhanca": 0.61,
+      "site": null
+    }
+  ],
+  "saturacao": {
+    "anos": [
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "aberturas": [
+      210,
+      265,
+      240,
+      198,
+      186
+    ],
+    "baixas": [
+      95,
+      120,
+      168,
+      181,
+      175
+    ],
+    "total_aberturas": 1099,
+    "total_baixas": 739,
+    "fonte": "Receita Federal — Dados Abertos do CNPJ (EXEMPLO, números fictícios)"
+  },
+  "lacunas": [
+    {
+      "titulo": "Inglês ao vivo, em grupo, para 40+ iniciantes",
+      "atributos": {
+        "publico": "adultos 40+ iniciantes",
+        "produto_servico": "aulas ao vivo em grupo",
+        "canal": "online"
+      },
+      "n_empresas_que_oferecem": 0,
+      "n_empresas_analisadas": 47,
+      "cnpjs_base": [
+        "99000001000101",
+        "99000002000102",
+        "99000003000103",
+        "99000004000104"
+      ]
+    },
+    {
+      "titulo": "Presencial para aposentados",
+      "atributos": {
+        "publico": "aposentados",
+        "produto_servico": "aulas de inglês",
+        "canal": "presencial"
+      },
+      "n_empresas_que_oferecem": 1,
+      "n_empresas_analisadas": 47,
+      "cnpjs_base": [
+        "99000003000103"
+      ]
+    }
+  ],
+  "diferencial": {
+    "em_comum": "Aulas online para adultos iniciantes.",
+    "possiveis_diferenciais": "Ninguém no recorte combina ao vivo + em grupo + público 40+.",
+    "nao_verificado": "Preços — poucos sites publicam."
+  },
+  "gerado_em": "2026-10-13T12:00:00-03:00",
+  "_aviso": "ARQUIVO DE EXEMPLO. Empresas e números fictícios. Não usar no artigo."
+}
