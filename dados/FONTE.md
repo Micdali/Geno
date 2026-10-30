@@ -83,6 +83,16 @@ A ordem das colunas usada pelo ETL está em `config.yaml`, seção `colunas`.
 4. **Capital social** vem com vírgula decimal (ex.: `120000000000,00`) e as datas como `AAAAMMDD`; datas inválidas como `00000000` precisam virar nulo (o PDF não diz isso).
 5. **Município** é o código da Receita, **não** o código IBGE (o PDF fala em "código do município de jurisdição").
 
+## Armadilhas dos CSVs (medidas em 29/10/2026)
+
+Não estão no PDF. O `etl/filtrar.py` trata cada uma e confere o resultado contra uma contagem independente de registros.
+
+1. **Aspas duplicadas dentro do campo** (CSV válido): `"NIGTH CLUB ""TUTU"" LTDA"`. Sem `escape='"'` o DuckDB entra em modo estrito, rejeita a linha e **descarta blocos inteiros sem avisar**: em `Empresas1` leu 1,18 M das 4,49 M linhas (perda de 74%). Com `escape='"'` lê tudo e desfaz as aspas. Foi a primeira versão do ETL que teve esse defeito, e a conferência de contagem existe por causa dele.
+2. **Quebra de linha dentro de campo entre aspas**: 4 registros em `Estabelecimentos0` (nome ou complemento, de empresas fora do RJ) ocupam 2 linhas físicas. Por isso o número de registros é menor que o de quebras de linha (31.028.464 contra 31.028.468).
+3. **Bytes que o DuckDB recusa como Latin-1**: `0x8F` solto no campo de e-mail de uma empresa de SP (`Estabelecimentos0`, único byte inválido em 7,26 GB). `Estabelecimentos1` e `Estabelecimentos7` deram o mesmo erro no DuckDB; a causa neles não foi inspecionada. O filtro tenta Latin-1 e, só se o DuckDB der `File is not latin-1 encoded`, converte o CSV para UTF-8 em streaming (o decodificador Latin-1 do Python aceita os 256 bytes, nada se perde). O `etl_log.csv` registra quais arquivos precisaram disso.
+4. **`0x1A` (Ctrl-Z) no lugar de caracteres** em endereços de empresas no exterior (ex.: "URBANIZA␚␚O"). É válido em Latin-1 e não afeta o recorte.
+5. **Conferência de totais** (competência 2026-10): 73,8 M de estabelecimentos lidos no Brasil (31.028.464 + 9 × 4.753.435) e 329.038 raízes no recorte, igual à soma das linhas filtradas de Empresas.
+
 ## CNAEs do setor piloto (conferidos na tabela oficial `Cnaes`)
 
 | Código | Descrição oficial | Situação no `config.yaml` |

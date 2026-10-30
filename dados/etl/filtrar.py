@@ -52,13 +52,45 @@ def cnaes_do_recorte(cfg: dict) -> list[str]:
     return list(r["cnaes"]) + (list(r["cnaes_opcionais"]) if r.get("incluir_opcionais") else [])
 
 
-def leitura_csv(csv_path: Path, colunas: list[str], guardar_rejeitados: bool) -> str:
+def leitura_csv(csv_path: Path, colunas: list[str], guardar_rejeitados: bool, codificacao: str = "latin-1") -> str:
     """Expressão read_csv do DuckDB para os CSVs da Receita."""
     cols = ", ".join(f"{q(c)}: 'VARCHAR'" for c in colunas)
     extra = ", store_rejects=true, rejects_table='rej_t', rejects_scan='rej_s'" if guardar_rejeitados \
         else ", ignore_errors=true"
-    return (f"read_csv({q(csv_path.as_posix())}, delim=';', header=false, quote='\"', "
-            f"encoding='latin-1', all_varchar=true, columns={{{cols}}}{extra})")
+    return (f"read_csv({q(csv_path.as_posix())}, delim=';', header=false, quote='\"', escape='\"', "
+            f"encoding={q(codificacao)}, all_varchar=true, columns={{{cols}}}{extra})")
+
+
+def contar_registros(con: duckdb.DuckDBPyConnection, csv_path: Path, codificacao: str) -> int:
+    """Registros lógicos do CSV, contados sem o interpretador de CSV do DuckDB.
+
+    Lê cada linha física inteira como um único campo. Um campo entre aspas pode conter quebra de
+    linha (poucos casos reais: nome ou complemento), e então o registro ocupa 2 linhas físicas, ambas
+    com número ímpar de aspas. Registros = linhas físicas - (linhas com aspas ímpares) / 2.
+    Serve de conferência: linhas lidas + rejeitadas tem que bater com isto.
+    """
+    fisicas, impares = con.execute(
+        "SELECT count(*), count(*) FILTER (WHERE (length(l) - length(replace(l, '\"', ''))) % 2 = 1) "
+        f"FROM read_csv({q(csv_path.as_posix())}, header=false, delim={q(chr(1))}, quote='', escape='', "
+        f"all_varchar=true, columns={{'l': 'VARCHAR'}}, encoding={q(codificacao)}, strict_mode=false)"
+    ).fetchone()
+    if impares % 2:
+        raise ErroDownload(f"{csv_path.name}: {impares} linhas com aspas ímpares (esperado um número par)")
+    return fisicas - impares // 2
+
+
+def converter_para_utf8(origem: Path) -> Path:
+    """Reescreve o CSV de Latin-1 para UTF-8 em blocos e apaga o original (poupa disco).
+
+    Só é usado quando o DuckDB recusa o arquivo como Latin-1 (bytes de controle soltos, como
+    0x8F). O decodificador latin-1 do Python aceita os 256 valores de byte, então nada se perde.
+    """
+    destino = origem.with_name(origem.name + ".utf8")
+    with open(origem, "rb") as entrada, open(destino, "w", encoding="utf-8", newline="") as saida:
+        while bloco := entrada.read(64 << 20):
+            saida.write(bloco.decode("latin-1"))
+    origem.unlink()
+    return destino
 
 
 def sql_estabelecimentos(cfg: dict, fonte: str) -> str:
@@ -91,19 +123,23 @@ def sql_dominio(fonte: str) -> str:
     return f"SELECT codigo, descricao FROM {fonte}"
 
 
-def registrar_log(cfg: dict, arquivo: str, lidas: int, filtradas: int, rejeitadas: int, tempo: float) -> None:
+def registrar_log(cfg: dict, arquivo: str, registros_csv: int, lidas: int, filtradas: int, rejeitadas: int,
+                  tempo: float, convertido_utf8: bool) -> None:
     caminho = RAIZ / cfg["caminhos"]["log"]
     novo = not caminho.exists()
     with open(caminho, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         if novo:
-            w.writerow(["quando", "arquivo", "linhas_lidas", "linhas_filtradas", "linhas_rejeitadas", "tempo_s"])
-        w.writerow([datetime.now().isoformat(timespec="seconds"), arquivo, lidas, filtradas, rejeitadas,
-                    f"{tempo:.1f}"])
+            w.writerow(["quando", "arquivo", "registros_csv", "linhas_lidas", "linhas_filtradas", "linhas_rejeitadas", "tempo_s",
+                        "convertido_utf8"])
+        w.writerow([datetime.now().isoformat(timespec="seconds"), arquivo, registros_csv, lidas, filtradas, rejeitadas,
+                    f"{tempo:.1f}", "sim" if convertido_utf8 else "nao"])
 
 
 def registrar_rejeitados(cfg: dict, con: duckdb.DuckDBPyConnection, arquivo: str) -> int:
     """Conta as linhas rejeitadas do arquivo e guarda alguns exemplos para inspeção."""
+    if not con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = 'rej_t'").fetchone()[0]:
+        return 0  # o DuckDB só cria a tabela quando há erro
     n = con.execute("SELECT count(DISTINCT line) FROM rej_t").fetchone()[0]
     if n:
         caminho = RAIZ / cfg["caminhos"]["rejeitados"]
@@ -168,14 +204,38 @@ class Processador:
         self.con.execute("DROP TABLE IF EXISTS rej_t; DROP TABLE IF EXISTS rej_s;")
 
         print(f"{nome}: lendo e filtrando ...", flush=True)
-        consulta = construir_sql(leitura_csv(csv_path, colunas, guardar_rejeitados=True))
-        filtradas = self.con.execute(
-            f"COPY ({consulta}) TO {q(provisorio.as_posix())} (FORMAT PARQUET, COMPRESSION ZSTD)"
-        ).fetchone()[0]
+        codificacao = "latin-1"
+
+        def ler_e_gravar() -> int:
+            consulta = construir_sql(leitura_csv(csv_path, colunas, True, codificacao))
+            return self.con.execute(
+                f"COPY ({consulta}) TO {q(provisorio.as_posix())} (FORMAT PARQUET, COMPRESSION ZSTD)"
+            ).fetchone()[0]
+
+        try:
+            filtradas = ler_e_gravar()
+        except duckdb.Error as e:
+            if "latin-1" not in str(e):
+                raise
+            # O DuckDB recusa Latin-1 estrito (ex.: byte 0x8F solto). Converte e tenta de novo.
+            print(f"{nome}: DuckDB recusou o arquivo como Latin-1 ({str(e).splitlines()[0]}). "
+                  "Convertendo para UTF-8 em streaming ...", flush=True)
+            csv_path, codificacao = converter_para_utf8(csv_path), "utf-8"
+            provisorio.unlink(missing_ok=True)
+            self.con.execute("DROP TABLE IF EXISTS rej_t; DROP TABLE IF EXISTS rej_s;")
+            filtradas = ler_e_gravar()
         rejeitadas = registrar_rejeitados(self.cfg, self.con, nome)
         lidas = self.con.execute(
-            f"SELECT count(*) FROM {leitura_csv(csv_path, colunas, guardar_rejeitados=False)}"
+            f"SELECT count(*) FROM {leitura_csv(csv_path, colunas, False, codificacao)}"
         ).fetchone()[0]
+
+        # Confere contra a contagem independente de registros do CSV: nada pode sumir em silêncio.
+        registros_csv = contar_registros(self.con, csv_path, codificacao)
+        if lidas + rejeitadas != registros_csv:
+            raise ErroDownload(
+                f"{nome}: o CSV tem {registros_csv:,} registros, mas o DuckDB leu {lidas:,} e rejeitou "
+                f"{rejeitadas:,} (diferença de {registros_csv - lidas - rejeitadas:,}). "
+                "Perda de linhas na leitura; ZIP e CSV mantidos para inspeção.")
 
         # Valida o Parquet antes de apagar qualquer coisa.
         no_parquet = self.con.execute(f"SELECT count(*) FROM read_parquet({q(provisorio.as_posix())})").fetchone()[0]
@@ -186,9 +246,10 @@ class Processador:
         provisorio.replace(destino)
 
         tempo = time.time() - t0
-        registrar_log(self.cfg, nome, lidas, filtradas, rejeitadas, tempo)
+        registrar_log(self.cfg, nome, registros_csv, lidas, filtradas, rejeitadas, tempo, codificacao == "utf-8")
         aviso = " (0 linhas no recorte, registrado)" if filtradas == 0 else ""
-        print(f"{nome}: lidas {lidas:,}  filtradas {filtradas:,}{aviso}  rejeitadas {rejeitadas:,}  {tempo:.0f}s")
+        print(f"{nome}: lidas {lidas:,}  filtradas {filtradas:,}{aviso}  rejeitadas {rejeitadas:,}  {tempo:.0f}s"
+              + ("  [convertido para UTF-8]" if codificacao == "utf-8" else ""))
 
         shutil.rmtree(pasta)
         if not self.manter_zip:
