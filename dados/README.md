@@ -74,6 +74,6 @@ consultas.saturacao_setor_amplo(2018)     # o mesmo para todo o recorte
 consultas.dados_publicos(cnpjs)           # lê só vw_publico
 ```
 
-O ano corrente é parcial. Defina `GENO_DB` no `.env` se o banco ficar noutro lugar.
+O ano corrente é parcial. O caminho padrão é `dados/geno.duckdb`, relativo à pasta onde o Python roda (rode da raiz do repositório); para outro lugar, defina a variável de ambiente `GENO_DB` (o `consultas.py` não lê o `.env` sozinho).
 
 Referência: seções 3, 6, 7, 8 e 12 do relatório técnico.
