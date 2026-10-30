@@ -12,7 +12,7 @@ Números reais medidos durante o desenvolvimento. É daqui que o artigo tira os 
 | % ativas / % baixadas | 52,8% ativas (176.175) / 37,2% baixadas (123.927); inaptas 9,8%, suspensas 0,2%, nulas 0,1% | 29/10/2026 | `python -m dados.etl.validar`, por `situacao_cadastral` |
 | Entraram só pelo CNAE secundário | 165.011 (49,5%) | 29/10/2026 | Principal fora dos 5 CNAEs do setor |
 | Ativos com `dominio_email` (site provável) | 27.296 de 176.175 (15,5%); baixados 9.581 de 123.927 (7,7%) | 29/10/2026 | Domínio do e-mail, sem provedores genéricos; ainda sem descartar domínios de contadores |
-| Nº de baixas tratadas como baixa em massa | | | A fazer (tratamento pelo motivo da situação, nas views) |
+| Baixas por tipo de motivo (123.927 baixadas) | encerramento voluntário 113.603; óbito de MEI 1.368; judicial 26 (contam como mortalidade: 114.997); de ofício 8.570 e reorganização 353 (não contam); outro 7 | 30/10/2026 | `vw_eventos.tipo_baixa`; classificação proposta em `config.yaml`, a confirmar pelo grupo |
 
 ## Associação CNPJ ↔ site — Roger
 

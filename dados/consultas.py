@@ -18,13 +18,41 @@ def conectar(somente_leitura: bool = True) -> duckdb.DuckDBPyConnection:
     return duckdb.connect(DB_PATH, read_only=somente_leitura)
 
 
+def _serie(cnpjs: list[str] | None, ano_inicial: int) -> pd.DataFrame:
+    """Aberturas e baixas por ano; cnpjs=None considera todo o recorte.
+
+    Só entram as baixas com conta_mortalidade (encerramentos), não as de ofício nem as
+    reorganizações (ver dados/sql/02_views.sql). O ano corrente é parcial.
+    """
+    filtro = "" if cnpjs is None else "AND cnpj IN (SELECT unnest(?::VARCHAR[]))"
+    params = [] if cnpjs is None else [list(cnpjs)]
+    sql = f"""
+        SELECT ano,
+               count(*) FILTER (WHERE tipo = 'abertura') AS aberturas,
+               count(*) FILTER (WHERE tipo = 'baixa')    AS baixas
+        FROM (
+            SELECT ano_abertura AS ano, 'abertura' AS tipo
+            FROM vw_eventos WHERE ano_abertura IS NOT NULL {filtro}
+            UNION ALL
+            SELECT ano_baixa, 'baixa'
+            FROM vw_eventos WHERE conta_mortalidade AND ano_baixa IS NOT NULL {filtro}
+        ) t
+        WHERE ano >= ?
+        GROUP BY ano ORDER BY ano"""
+    con = conectar()
+    try:
+        return con.execute(sql, params + params + [ano_inicial]).df()
+    finally:
+        con.close()
+
+
 def saturacao(cnpjs: list[str], ano_inicial: int) -> pd.DataFrame:
     """Série de aberturas e baixas por ano para um conjunto de empresas.
 
     Retorna as colunas: ano, aberturas, baixas.
     Deve ignorar baixas em massa feitas pela Receita (tratadas pelo motivo da situação).
     """
-    raise NotImplementedError("Lucas: implementar (ver seção 10.2 do relatório técnico)")
+    return _serie(cnpjs, ano_inicial)
 
 
 def saturacao_setor_amplo(ano_inicial: int) -> pd.DataFrame:
@@ -33,9 +61,16 @@ def saturacao_setor_amplo(ano_inicial: int) -> pd.DataFrame:
     É o recuo usado quando o nicho tem poucas empresas fechadas classificadas.
     Nesse caso, o indicador de confiança avisa que não é o nicho exato.
     """
-    raise NotImplementedError("Lucas: implementar")
+    return _serie(None, ano_inicial)
 
 
 def dados_publicos(cnpjs: list[str]) -> pd.DataFrame:
     """Dados exibíveis das empresas (lê só vw_publico: sem sócios, sem nome de titular de MEI)."""
-    raise NotImplementedError("Lucas: implementar")
+    con = conectar()
+    try:
+        return con.execute(
+            "SELECT * FROM vw_publico WHERE cnpj IN (SELECT unnest(?::VARCHAR[])) ORDER BY cnpj",
+            [list(cnpjs)],
+        ).df()
+    finally:
+        con.close()

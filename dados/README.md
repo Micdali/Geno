@@ -52,4 +52,28 @@ Armadilhas já encontradas nos CSVs da Receita (detalhes no `FONTE.md`): aspas d
 
 **Tempo e disco (competência 2026-10, máquina do Lucas):** ≈ 7,1 GB de download (uns 20 min a ~5 MB/s) e ≈ 25 min de processamento. O pico de disco é o ZIP mais o CSV do maior arquivo (≈ 10 GB; com a conversão para UTF-8, que ocorre em alguns arquivos, até ≈ 17 GB). A saída final em `dados/parquet/` ocupa ≈ 34 MB.
 
+### Etapa 3 — montar o banco
+
+```bash
+python -m dados.etl.construir_db        # gera dados/geno.duckdb (≈ 65 MB, segundos)
+```
+
+Aplica `contratos/01_schema.sql`, carrega a camada 1 (datas e valores já convertidos, CNPJ como texto), preenche `motivo_tipo` a partir do `config.yaml` e aplica [`sql/02_views.sql`](sql/02_views.sql). Confere as contagens contra os Parquet e só então troca o banco anterior. As camadas 2 a 4 ficam criadas e vazias (Roger e Micael preenchem).
+
+O que `02_views.sql` muda em relação ao contrato (a conferir pelo grupo):
+
+- **`vw_eventos`** mantém as colunas do contrato e acrescenta `tipo_baixa` e `conta_mortalidade`. Só baixas por encerramento (voluntária, judicial, óbito de MEI) contam como mortalidade; baixas de ofício (omissão, inaptidão, registro cancelado) e reorganizações (incorporação, troca matriz/filial) não. A lista está em `config.yaml` (`baixas`), é proposta minha e precisa de confirmação.
+- **`vw_publico`** também esconde o nome fantasia de MEI/empresário individual quando ele repete o nome do titular (com ou sem o CPF). Limite: um nome fantasia que é só o primeiro nome não é detectado.
+
+Funções de `consultas.py` (leem o banco em modo somente leitura):
+
+```python
+from dados import consultas
+consultas.saturacao(cnpjs, 2018)          # ano, aberturas, baixas (só mortalidade) de um conjunto
+consultas.saturacao_setor_amplo(2018)     # o mesmo para todo o recorte
+consultas.dados_publicos(cnpjs)           # lê só vw_publico
+```
+
+O ano corrente é parcial. Defina `GENO_DB` no `.env` se o banco ficar noutro lugar.
+
 Referência: seções 3, 6, 7, 8 e 12 do relatório técnico.
