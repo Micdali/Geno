@@ -9,7 +9,9 @@
 --     conferido na tabela oficial): nesses casos ela é "NOME 12345678901".
 --   * nome_fantasia e nome_exibicao também escondem o nome fantasia de MEI/EI que repete o nome do
 --     titular (com ou sem CPF). Achado de 30/10/2026: 53.207 MEI/EI têm fantasia e parte é o nome da
---     pessoa. Limite: um fantasia que é só o primeiro nome não é detectado.
+--     pessoa. Limite: um fantasia que é só o primeiro nome, ou parte do nome, não é detectado
+--     (decisão do Lucas em 30/10/2026: não esconder nomes parciais; ex.: "CAROL SILVEIRA" aparece).
+--   * nome_fantasia com '@' (e-mail digitado no campo) é escondido em qualquer empresa: 88 casos.
 --   * Não expõe e-mail, domínio de e-mail, telefone, endereço detalhado (logradouro, número,
 --     complemento, CEP) nem nada de sócios (que nem existe no banco).
 CREATE OR REPLACE VIEW vw_publico AS
@@ -22,8 +24,10 @@ WITH base AS (
         s.opcao_mei                                           AS opc_mei,
         coalesce(emp.opcao_mei OR s.opcao_mei = 'S' OR emp.natureza_juridica = '2135', false)
                                                               AS pessoa_fisica,
+        coalesce(e.nome_fantasia LIKE '%@%', false)           AS tem_arroba,
         coalesce(e.nome_fantasia IS NOT NULL
                  AND NOT regexp_matches(e.nome_fantasia, '[0-9]{11}')
+                 AND e.nome_fantasia NOT LIKE '%@%'
                  AND upper(trim(e.nome_fantasia))
                      <> upper(trim(regexp_replace(emp.razao_social, '\s*[0-9]{11}\s*$', ''))), false)
                                                               AS fantasia_ok
@@ -35,14 +39,14 @@ SELECT
     b.cnpj,
     CASE WHEN b.pessoa_fisica
          THEN CASE WHEN b.fantasia_ok THEN b.nome_fantasia ELSE 'Empresa individual (nome oculto)' END
-         ELSE COALESCE(b.nome_fantasia, b.rs) END             AS nome_exibicao,
+         ELSE COALESCE(CASE WHEN NOT b.tem_arroba THEN b.nome_fantasia END, b.rs) END AS nome_exibicao,
     b.situacao,
     b.data_inicio,
     b.data_situacao,
     b.bairro,
     m.descricao                                               AS municipio,
     b.uf,
-    CASE WHEN b.pessoa_fisica AND NOT b.fantasia_ok THEN NULL ELSE b.nome_fantasia END AS nome_fantasia,
+    CASE WHEN b.tem_arroba OR (b.pessoa_fisica AND NOT b.fantasia_ok) THEN NULL ELSE b.nome_fantasia END AS nome_fantasia,
     CASE WHEN b.pessoa_fisica THEN NULL ELSE b.rs END         AS razao_social,
     b.cnae_principal,
     c.descricao                                               AS cnae_descricao,
