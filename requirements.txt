@@ -12,7 +12,7 @@ beautifulsoup4>=4.12
 # Motor (motor/)
 sentence-transformers>=3.0
 python-dotenv>=1.0
-# SDK do LLM: adicionar quando o grupo escolher o provedor
+google-genai>=1.0          # SDK oficial do Gemini (from google import genai)
 
 # App (app/) — se a stack escolhida for Streamlit
 streamlit>=1.40
