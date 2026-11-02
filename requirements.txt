@@ -19,3 +19,6 @@ python-dotenv>=1.0
 # App (app/) — se a stack escolhida for Streamlit
 streamlit>=1.40
 plotly>=5.24
+
+# Testes
+pytest>=8

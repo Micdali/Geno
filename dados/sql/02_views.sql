@@ -32,31 +32,3 @@ SELECT
 FROM estabelecimento e
 LEFT JOIN motivo_tipo t ON t.codigo = e.motivo_situacao;
 
--- Dados exibíveis. Esconde o nome do titular de MEI / empresário individual (LGPD).
--- Natureza 2135 = "Empresário (Individual)" (conferido na tabela oficial).
--- Diferença do contrato: aqui o nome fantasia também é escondido quando, em MEI/EI, ele repete o
--- nome do titular, com ou sem o CPF (a razão social desses casos é "NOME 12345678901"). Medido em 30/10/2026:
--- 53.207 estabelecimentos de MEI/EI têm nome fantasia, e parte deles é o nome da pessoa.
--- Limite conhecido: um nome fantasia que é só parte do nome (ex.: o primeiro nome) não é detectado.
-CREATE OR REPLACE VIEW vw_publico AS
-SELECT
-    e.cnpj,
-    CASE
-        WHEN emp.opcao_mei OR emp.natureza_juridica = '2135' THEN
-            CASE WHEN e.nome_fantasia IS NOT NULL
-                      AND NOT regexp_matches(e.nome_fantasia, '[0-9]{11}')   -- "NOME CPF" no fantasia
-                      AND upper(trim(e.nome_fantasia))
-                          <> upper(trim(regexp_replace(emp.razao_social, '\s*[0-9]{11}\s*$', '')))
-                 THEN e.nome_fantasia
-                 ELSE 'Empresa individual (nome oculto)' END
-        ELSE COALESCE(e.nome_fantasia, emp.razao_social)
-    END                     AS nome_exibicao,
-    e.situacao,
-    e.data_inicio,
-    e.data_situacao,
-    e.bairro,
-    m.descricao             AS municipio,
-    e.uf
-FROM estabelecimento e
-LEFT JOIN empresa   emp ON emp.cnpj_basico = e.cnpj_basico
-LEFT JOIN municipio m   ON m.codigo        = e.municipio_cod;

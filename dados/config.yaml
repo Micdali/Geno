@@ -62,6 +62,14 @@ baixas:
   oficio: ["09", "66", "67", "71", "73"]  # não início, inaptidão, registro cancelado, omissão contumaz
   reorganizacao: ["02", "07", "28", "31", "33"]  # incorporação, mudança matriz/filial: não é fechamento
 
+# Situação cadastral: códigos do layout oficial (cnpj-metadados.pdf), com dois dígitos como nos dados.
+situacao_cadastral:
+  "01": "Nula"
+  "02": "Ativa"
+  "03": "Suspensa"
+  "04": "Inapta"
+  "08": "Baixada"
+
 caminhos:
   db: "dados/geno.duckdb"         # banco final (fora do Git)
   raw: "dados/raw"                # downloads temporários (fora do Git)

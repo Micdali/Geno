@@ -19,7 +19,8 @@ from dados.etl.baixar import CONFIG_PADRAO, RAIZ, carregar_config
 from dados.etl.filtrar import cnaes_do_recorte, q
 
 SCHEMA = RAIZ / "contratos" / "01_schema.sql"
-VIEWS = RAIZ / "dados" / "sql" / "02_views.sql"
+SCHEMA_EXTRA = RAIZ / "dados" / "sql" / "01_schema_extra.sql"
+VIEWS = [RAIZ / "dados" / "sql" / n for n in ("02_views.sql", "03_views_publicas.sql")]
 
 
 def data(coluna: str) -> str:
@@ -35,6 +36,18 @@ def carregar(con: duckdb.DuckDBPyConnection, cfg: dict) -> None:
     for tabela, arq in (("cnae", "cnaes"), ("municipio", "municipios"), ("motivo", "motivos"),
                         ("natureza", "naturezas")):
         con.execute(f"INSERT INTO {tabela} SELECT codigo, descricao FROM read_parquet({pq(f'dominio/{arq}.parquet')})")
+
+    for tabela, arq in (("pais", "paises"), ("qualificacao", "qualificacoes")):
+        con.execute(f"INSERT INTO {tabela} SELECT codigo, descricao FROM read_parquet({pq(f'dominio/{arq}.parquet')})")
+    con.executemany("INSERT INTO situacao_cadastral VALUES (?, ?)", list(cfg["situacao_cadastral"].items()))
+
+    con.execute(f"""
+        INSERT INTO simples
+        SELECT cnpj_basico, nullif(opcao_simples, ''),
+               {data('data_opcao_simples')}, {data('data_exclusao_simples')},
+               nullif(opcao_mei, ''),
+               {data('data_opcao_mei')}, {data('data_exclusao_mei')}
+        FROM read_parquet({pq('simples/parte_*.parquet')})""")
 
     con.execute(f"""
         INSERT INTO empresa
@@ -84,6 +97,9 @@ def conferir(con: duckdb.DuckDBPyConnection, cfg: dict) -> None:
         ("cnae", f"SELECT count(*) FROM read_parquet({pq('dominio/cnaes.parquet')})"),
         ("motivo", f"SELECT count(*) FROM read_parquet({pq('dominio/motivos.parquet')})"),
         ("natureza", f"SELECT count(*) FROM read_parquet({pq('dominio/naturezas.parquet')})"),
+        ("pais", f"SELECT count(*) FROM read_parquet({pq('dominio/paises.parquet')})"),
+        ("qualificacao", f"SELECT count(*) FROM read_parquet({pq('dominio/qualificacoes.parquet')})"),
+        ("simples", f"SELECT count(*) FROM read_parquet({pq('simples/parte_*.parquet')})"),
     ]
     for tabela, sql_origem in pares:
         banco, origem = um(f"SELECT count(*) FROM {tabela}"), um(sql_origem)
@@ -92,6 +108,11 @@ def conferir(con: duckdb.DuckDBPyConnection, cfg: dict) -> None:
             raise SystemExit(f"ERRO: {tabela} tem {banco:,} linhas no banco e {origem:,} no Parquet.")
     # Join com Simples não pode ter duplicado nem perdido empresas (verificado acima em `empresa`),
     # e toda data de abertura precisa ter sido lida (nenhum AAAAMMDD inválido no recorte).
+    sem_situacao = um("SELECT count(*) FROM estabelecimento e WHERE NOT EXISTS "
+                      "(SELECT 1 FROM situacao_cadastral s WHERE s.codigo = e.situacao)")
+    print(f"  estabelecimentos com situação fora do layout: {sem_situacao:,}")
+    if sem_situacao:
+        raise SystemExit("ERRO: há códigos de situação cadastral que não estão no layout oficial.")
     sem_data = um("SELECT count(*) FROM estabelecimento WHERE data_inicio IS NULL")
     print(f"  estabelecimentos sem data_inicio: {sem_data:,}")
     if sem_data:
@@ -114,7 +135,9 @@ def main() -> int:
 
     con = duckdb.connect(str(provisorio))
     con.execute(SCHEMA.read_text(encoding="utf-8"))
-    con.execute(VIEWS.read_text(encoding="utf-8"))
+    con.execute(SCHEMA_EXTRA.read_text(encoding="utf-8"))
+    for arquivo in VIEWS:
+        con.execute(arquivo.read_text(encoding="utf-8"))
     carregar(con, cfg)
     print(f"Banco montado em {destino.relative_to(RAIZ)}:")
     conferir(con, cfg)
