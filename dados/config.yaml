@@ -1,0 +1,136 @@
+# Configuração do ETL da base CNPJ (bloco dados/, dono: Lucas).
+# Todos os scripts de dados/etl/ leem os parâmetros daqui; nada fica fixo no código.
+
+fonte:
+  # O endereço antigo (.../dados/cnpj/dados_abertos_cnpj/) retorna 404. A Receita migrou
+  # para um compartilhamento Nextcloud (SERPRO+). Acesso por WebDAV: o usuário é o token
+  # do link público e a senha é vazia. Ver FONTE.md.
+  url_base: "https://arquivos.receitafederal.gov.br/public.php/webdav/Dados/Cadastros/CNPJ"
+  share_token: "gn672Ad4CF8N6TK"
+  competencia: "2026-10"          # pasta AAAA-MM; conferir antes de cada carga
+
+recorte:
+  uf: "RJ"
+  # Setor piloto "educação livre". O filtro vale para o CNAE principal OU qualquer secundário.
+  cnaes:
+    - "8593700"   # Ensino de idiomas
+    - "8599604"   # Treinamento em desenvolvimento profissional e gerencial
+    - "8599699"   # Outras atividades de ensino não especificadas anteriormente
+  # Opcionais: só entram se incluir_opcionais for true (confirmado pelo Lucas em 29/10/2026).
+  cnaes_opcionais:
+    - "8599603"   # Treinamento em informática
+    - "8599605"   # Cursos preparatórios para concursos
+  incluir_opcionais: true
+  # Sem filtro de data no ETL: o recorte temporal é feito depois, nas views.
+
+  # Domínios de e-mail que não indicam site próprio: viram NULL em dominio_email.
+  # (Domínios de contadores, que aparecem em muitos CNPJs, são tratados na etapa de
+  # enriquecimento, que enxerga a base inteira do recorte.)
+  provedores_genericos:
+    - gmail.com
+    - googlemail.com
+    - hotmail.com
+    - hotmail.com.br
+    - outlook.com
+    - outlook.com.br
+    - live.com
+    - msn.com
+    - yahoo.com
+    - yahoo.com.br
+    - ymail.com
+    - bol.com.br
+    - uol.com.br
+    - terra.com.br
+    - ig.com.br
+    - globo.com
+    - globomail.com
+    - r7.com
+    - oi.com.br
+    - icloud.com
+    - me.com
+    - aol.com
+    - protonmail.com
+
+caminhos:
+  raw: "dados/raw"                # downloads temporários (fora do Git)
+  tmp: "dados/raw/tmp"            # CSV extraído de um ZIP por vez; apagado após validar
+  parquet: "dados/parquet"        # saídas do ETL (fora do Git)
+  log: "dados/etl_log.csv"
+  rejeitados: "dados/etl_rejeitados.csv"   # exemplos de linhas malformadas
+
+download:
+  tentativas: 8
+  espera_inicial_s: 2             # backoff exponencial: 2, 4, 8, ... até espera_maxima_s
+  espera_maxima_s: 120
+  timeout_conexao_s: 30
+  timeout_leitura_s: 120
+  bloco_bytes: 1048576            # 1 MiB
+  folga_disco_gb: 2               # espaço livre mínimo que deve sobrar após cada download
+
+# Arquivos da competência. Sócios NÃO entram (minimização de dados, LGPD).
+arquivos:
+  estabelecimentos: [Estabelecimentos0, Estabelecimentos1, Estabelecimentos2, Estabelecimentos3, Estabelecimentos4,
+                     Estabelecimentos5, Estabelecimentos6, Estabelecimentos7, Estabelecimentos8, Estabelecimentos9]
+  empresas: [Empresas0, Empresas1, Empresas2, Empresas3, Empresas4,
+             Empresas5, Empresas6, Empresas7, Empresas8, Empresas9]
+  simples: [Simples]
+  dominio: [Cnaes, Motivos, Municipios, Naturezas, Paises, Qualificacoes]
+
+# Layout oficial (gov.br/receitafederal/dados/cnpj-metadados.pdf), na ordem das colunas
+# dos CSVs (sem cabeçalho, separador ";", Latin-1). Conferido em linhas reais em 29/10/2026.
+# Colunas que o ETL descarta já na leitura (relatório técnico, seção 12: telefones descartados
+# e do e-mail só o domínio, que vai para a coluna nova dominio_email).
+colunas_descartadas:
+  estabelecimentos: [ddd_1, telefone_1, ddd_2, telefone_2, ddd_fax, fax, correio_eletronico]
+
+colunas:
+  estabelecimentos:   # 30
+    - cnpj_basico
+    - cnpj_ordem
+    - cnpj_dv
+    - identificador_matriz_filial   # 1 matriz, 2 filial
+    - nome_fantasia
+    - situacao_cadastral            # 01 nula, 02 ativa, 03 suspensa, 04 inapta, 08 baixada
+    - data_situacao_cadastral       # AAAAMMDD
+    - motivo_situacao_cadastral
+    - nome_cidade_exterior
+    - pais
+    - data_inicio_atividade         # AAAAMMDD
+    - cnae_fiscal_principal
+    - cnae_fiscal_secundaria        # lista separada por vírgula
+    - tipo_logradouro
+    - logradouro
+    - numero
+    - complemento
+    - bairro
+    - cep
+    - uf
+    - municipio                     # código da Receita, NÃO é o código IBGE
+    - ddd_1
+    - telefone_1
+    - ddd_2
+    - telefone_2
+    - ddd_fax
+    - fax
+    - correio_eletronico
+    - situacao_especial
+    - data_situacao_especial
+  empresas:           # 7
+    - cnpj_basico
+    - razao_social
+    - natureza_juridica
+    - qualificacao_responsavel
+    - capital_social                # vírgula decimal, ex.: 120000000000,00
+    - porte_empresa                 # 00 não informado, 01 micro, 03 pequeno porte, 05 demais
+    - ente_federativo_responsavel
+  simples:            # 7
+    - cnpj_basico
+    - opcao_simples                 # S, N ou vazio
+    - data_opcao_simples
+    - data_exclusao_simples
+    - opcao_mei                     # S, N ou vazio
+    - data_opcao_mei
+    - data_exclusao_mei
+  dominio:            # todas as tabelas de domínio têm 2 colunas
+    - codigo
+    - descricao

@@ -4,6 +4,8 @@
 duckdb>=1.1
 pandas>=2.2
 pyarrow>=17
+pyyaml>=6.0
+tqdm>=4.66
 
 # Coleta de sites (enriquecimento/)
 requests>=2.32
