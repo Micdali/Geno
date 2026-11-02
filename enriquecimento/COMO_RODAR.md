@@ -38,7 +38,16 @@ python -m enriquecimento.metricas caminho/para/candidatos.csv
 
 # carregar o gabarito (CSV com os campos do contrato 3) na tabela gabarito:
 python -m enriquecimento.gabarito caminho/para/empresas_anotadas.csv
+
+# exportar o CSV de textos dos sites para o motor (Micael):
+python -m enriquecimento.exportar_textos      # -> enriquecimento/cache/textos_sites.csv
 ```
+
+## Entrega para o motor (Micael)
+`exportar_textos.py` gera `enriquecimento/cache/textos_sites.csv` (fora do Git), uma linha
+por página coletada: `cnpj, site, metodo, url, tipo, texto` (truncado em ~5.000),
+`status_http, bloqueado, coletado_em`. O `cnpj` vem do `candidatos.parquet` do Lucas —
+por isso a entrega do piloto depende desse arquivo (recorte RJ).
 
 ## Entrada e saída
 - **Entra:** `candidatos.parquet` (contrato 2, do Lucas — recorte do piloto, UF = RJ).
