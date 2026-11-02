@@ -2,6 +2,8 @@
 
 Transforma os Dados Abertos do CNPJ da Receita no banco `geno.duckdb` do setor piloto.
 
+> **Quem não é do bloco de dados:** comece por [`PARA_O_GRUPO.md`](PARA_O_GRUPO.md), com o que cada pessoa precisa saber, as decisões pendentes e onde está cada coisa.
+
 **Objetivo até 05/11:** banco reproduzível por script (qualquer pessoa recria do zero), com as visões e as consultas que o app usa. A tela de saturação depende só deste bloco: é o plano B do projeto.
 
 ## Entrega para os outros blocos
