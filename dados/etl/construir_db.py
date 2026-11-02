@@ -1,7 +1,7 @@
 """Monta o banco dados/geno.duckdb a partir dos Parquet do ETL (dono: Lucas).
 
 Cria as tabelas do contrato 1 (contratos/01_schema.sql), carrega a camada 1 (identidade) já com
-tipos tratados, carrega o seed motivo_classe e aplica as views de dados/sql/.
+tipos tratados, carrega o seed motivo_classe aplica as views de dados/sql/ e, no fim, gera as métricas (etl/gerar_metricas.py).
 As camadas 2 a 4 ficam criadas e vazias (são preenchidas por Roger e Micael).
 
 O banco é montado num arquivo provisório e só substitui o anterior depois de validado.
@@ -153,6 +153,9 @@ def main() -> int:
     con.close()
     provisorio.replace(destino)
     print(f"OK: {destino.relative_to(RAIZ)} ({destino.stat().st_size / 1e6:,.1f} MB)")
+    from dados.etl.gerar_metricas import gerar   # import tardio: precisa do banco já no lugar
+    gerar()
+    print("OK: dados/METRICAS.md e dados/metricas.json regenerados")
     return 0
 
 

@@ -4,6 +4,8 @@ Números reais medidos durante o desenvolvimento. É daqui que o artigo tira os 
 
 ## Recorte da base — Lucas
 
+> Números oficiais e atualizados do recorte: [`dados/METRICAS.md`](dados/METRICAS.md) (e `dados/metricas.json`), gerados do banco a cada `construir_db`. A tabela abaixo é o registro de 29 e 30/10/2026.
+
 | Métrica | Valor | Data | Como foi medido |
 |---|---|---|---|
 | Competência da Receita utilizada | 2026-10 (arquivos de 13/10/2026) | 29/10/2026 | Pasta mais recente do repositório da Receita; ver `dados/FONTE.md` |

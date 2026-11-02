@@ -53,8 +53,11 @@ recorte:
 
 # Parâmetros padrão das consultas de dados/geno_db/consultas.py (PROVISÓRIOS, a confirmar pelo grupo).
 consultas:
-  periodo: [2021, 2025]     # só anos completos; o banco tem eventos até out/2026
-  limiar_recuo: 30          # nº mínimo de estabelecimentos do nicho antes de ampliar o CNAE
+  periodo: [2021, 2025]     # 2026 fica de fora (incompleto); ver decisoes/DECISOES.md
+  anos_atipicos: []
+  limiar_recuo: 50          # nº mínimo de estabelecimentos do nicho antes de ampliar o CNAE
+  lacuna_max_abs: 2      # lacuna: no máximo max(abs, pct x ativos do nicho) estabelecimentos
+  lacuna_max_pct: 0.05
 
 # Situação cadastral: códigos do layout oficial (cnpj-metadados.pdf), com dois dígitos como nos dados.
 situacao_cadastral:

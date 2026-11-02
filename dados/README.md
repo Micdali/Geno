@@ -79,4 +79,14 @@ consultas.mortalidade_setor(["8593700"], horizonte=2)   # coortes + recuo de CNA
 
 Período padrão (2021 a 2025, só anos completos) e limiar de recuo (30 estabelecimentos) estão em `config.yaml`, seção `consultas`, e são provisórios. As consultas são parametrizadas e abrem o banco só para leitura; o caminho vem do `config.yaml` (relativo à raiz do repositório) ou da variável de ambiente `GENO_DB`. As funções antigas do contrato (`dados/consultas.py`, que o motor usa) continuam e agora ignoram as baixas de ofício.
 
+### Etapa 4 — decisões por regra e métricas oficiais
+
+```bash
+python -m dados.etl.decidir_parametros  # aplica as regras, grava config.yaml (seção consultas) e decisoes/DECISOES.md
+python -m dados.etl.construir_db        # no fim, gera dados/METRICAS.md e dados/metricas.json
+```
+
+- [`decisoes/DECISOES.md`](decisoes/DECISOES.md): uma seção por decisão, com a regra, os números que a sustentam e o valor escolhido (período 2021 a 2025, `limiar_recuo` 50, parâmetros de lacuna). Para rever uma decisão, altere o `config.yaml` e rode `construir_db`; as funções de consulta usam esses valores por padrão.
+- [`METRICAS.md`](METRICAS.md) e [`metricas.json`](metricas.json): números oficiais do recorte para o artigo. Saem só de consultas ao banco, com vírgula decimal no `.md` e ponto no `.json`, e o gerador aborta se os números forem incoerentes. Não edite à mão. O `METRICAS.md` da raiz, com as tabelas dos outros blocos, é outro arquivo e não é sobrescrito.
+
 Referência: seções 3, 6, 7, 8 e 12 do relatório técnico.
