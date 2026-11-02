@@ -63,21 +63,20 @@ Aplica, nesta ordem: `contratos/01_schema.sql`, [`sql/01_schema_extra.sql`](sql/
 
 Views (mudanças em relação ao contrato, a conferir pelo grupo):
 
-- **`vw_eventos`** (`02_views.sql`) mantém as colunas do contrato e acrescenta `tipo_baixa` e `conta_mortalidade`. Só baixas por encerramento (voluntária, judicial, óbito de MEI) contam como mortalidade; baixas de ofício (omissão, inaptidão, registro cancelado) e reorganizações (incorporação, troca matriz/filial) não. A lista está em `config.yaml` (`baixas`), é proposta minha e precisa de confirmação.
+- **`vw_eventos`** (`02_views.sql`) mantém as colunas do contrato e acrescenta `classe_baixa` e `baixa_em_massa`. A classe de cada motivo de baixa vem do seed versionado [`sql/seeds/motivo_classe.csv`](sql/seeds/motivo_classe.csv) (63 motivos, com justificativa): `voluntaria` (91,7% das baixas), `oficio` (6,9%: atos da Receita, inclusive as 3 baixas em massa de 31/12/2008, 09/02/2015 e 01/02/2018) e `outra` (1,4%: óbito de MEI, falência, reorganizações). `baixa_em_massa` é `classe = 'oficio'`. O `construir_db` falha se o seed não cobrir exatamente a tabela `motivo`.
 - **`vw_eventos_longo`** (`03_views_publicas.sql`): um evento por linha (abertura ou baixa), por estabelecimento. Colunas: `cnpj`, `tipo_evento`, `data_evento`, `ano`, `motivo`, `cnae_fiscal_principal`, `municipio` (código da Receita), `identificador_matriz_filial`, `opcao_mei`, `natureza_juridica`. Sem filtro de período.
 - **`vw_publico`** (`03_views_publicas.sql`) é a única fonte que o app pode consultar. Mantém as colunas do contrato e acrescenta nome fantasia, razão social, CNAE e descrição, situação e descrição, porte e opções do Simples e do MEI. Regras de LGPD: `razao_social` é NULL em MEI e natureza 2135 (empresário individual); o nome fantasia some quando, em MEI/empresário individual, repete o nome do titular (com ou sem CPF) e em qualquer empresa quando contém `@`. Limite aceito: nomes parciais do titular (ex.: só o primeiro nome) continuam visíveis. Não expõe e-mail, telefone, endereço detalhado nem sócios.
 
 Testes (`tests/test_lgpd.py`, precisam do banco já gerado): conferem que MEI e natureza 2135 não têm razão social, que a view não traz colunas de contato ou endereço detalhado nem valores com cara de e-mail, e que o banco não tem sócios, telefone nem e-mail completo.
 
-Funções de `consultas.py` (leem o banco em modo somente leitura):
+Consultas para o app e o motor, em [`geno_db/consultas.py`](geno_db/consultas.py) (guia e exemplos com saídas reais em [`geno_db/EXEMPLOS.md`](geno_db/EXEMPLOS.md)):
 
 ```python
-from dados import consultas
-consultas.saturacao(cnpjs, 2018)          # ano, aberturas, baixas (só mortalidade) de um conjunto
-consultas.saturacao_setor_amplo(2018)     # o mesmo para todo o recorte
-consultas.dados_publicos(cnpjs)           # lê só vw_publico
+from dados.geno_db import consultas
+consultas.saturacao(["8593700"])                        # ano, aberturas, baixas, baixas_oficio, saldo, ativos_fim_ano
+consultas.mortalidade_setor(["8593700"], horizonte=2)   # coortes + recuo de CNAE (subclasse -> classe -> grupo)
 ```
 
-O ano corrente é parcial. O caminho padrão é `dados/geno.duckdb`, relativo à pasta onde o Python roda (rode da raiz do repositório); para outro lugar, defina a variável de ambiente `GENO_DB` (o `consultas.py` não lê o `.env` sozinho).
+Período padrão (2021 a 2025, só anos completos) e limiar de recuo (30 estabelecimentos) estão em `config.yaml`, seção `consultas`, e são provisórios. As consultas são parametrizadas e abrem o banco só para leitura; o caminho vem do `config.yaml` (relativo à raiz do repositório) ou da variável de ambiente `GENO_DB`. As funções antigas do contrato (`dados/consultas.py`, que o motor usa) continuam e agora ignoram as baixas de ofício.
 
 Referência: seções 3, 6, 7, 8 e 12 do relatório técnico.

@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Visão pública (LGPD) e eventos em formato longo. Aplicada depois de 02_views.sql, que cria
--- motivo_tipo e vw_eventos; esta redefine vw_publico com mais colunas.
+-- motivo_classe e vw_eventos; esta redefine vw_publico com mais colunas.
 -- =====================================================================
 
 -- Dados exibíveis: ÚNICA fonte que o app pode consultar (LGPD). Mantém as colunas do contrato
@@ -65,19 +65,22 @@ LEFT JOIN situacao_cadastral sc ON sc.codigo = b.situacao;
 -- Baixa só quando situação = '08'; o motivo vem de motivo_situacao. Município é o código da Receita.
 CREATE OR REPLACE VIEW vw_eventos_longo AS
 WITH base AS (
-    SELECT e.*, emp.natureza_juridica AS natureza, s.opcao_mei AS mei
+    SELECT e.*, emp.natureza_juridica AS natureza, s.opcao_mei AS mei,
+           coalesce(mc.classe = 'oficio', false) AS em_massa
     FROM estabelecimento e
     LEFT JOIN empresa emp ON emp.cnpj_basico = e.cnpj_basico
     LEFT JOIN simples s   ON s.cnpj_basico   = e.cnpj_basico
+    LEFT JOIN motivo_classe mc ON mc.codigo_motivo = e.motivo_situacao
 )
 SELECT cnpj, 'abertura' AS tipo_evento, data_inicio AS data_evento, year(data_inicio) AS ano,
        NULL::VARCHAR AS motivo, cnae_principal AS cnae_fiscal_principal, municipio_cod AS municipio,
        CASE WHEN matriz THEN '1' ELSE '2' END AS identificador_matriz_filial,
-       mei AS opcao_mei, natureza AS natureza_juridica
+       mei AS opcao_mei, natureza AS natureza_juridica,
+       NULL::BOOLEAN AS baixa_em_massa            -- só faz sentido em baixas
 FROM base WHERE data_inicio IS NOT NULL
 UNION ALL
 SELECT cnpj, 'baixa', data_situacao, year(data_situacao),
        motivo_situacao, cnae_principal, municipio_cod,
        CASE WHEN matriz THEN '1' ELSE '2' END,
-       mei, natureza
+       mei, natureza, em_massa
 FROM base WHERE situacao = '08' AND data_situacao IS NOT NULL;

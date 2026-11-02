@@ -21,8 +21,7 @@ def conectar(somente_leitura: bool = True) -> duckdb.DuckDBPyConnection:
 def _serie(cnpjs: list[str] | None, ano_inicial: int) -> pd.DataFrame:
     """Aberturas e baixas por ano; cnpjs=None considera todo o recorte.
 
-    Só entram as baixas com conta_mortalidade (encerramentos), não as de ofício nem as
-    reorganizações (ver dados/sql/02_views.sql). O ano corrente é parcial.
+    Baixas de ofício (baixa_em_massa) ficam de fora; as demais contam (ver dados/sql/02_views.sql). O ano corrente é parcial.
     """
     filtro = "" if cnpjs is None else "AND cnpj IN (SELECT unnest(?::VARCHAR[]))"
     params = [] if cnpjs is None else [list(cnpjs)]
@@ -35,7 +34,7 @@ def _serie(cnpjs: list[str] | None, ano_inicial: int) -> pd.DataFrame:
             FROM vw_eventos WHERE ano_abertura IS NOT NULL {filtro}
             UNION ALL
             SELECT ano_baixa, 'baixa'
-            FROM vw_eventos WHERE conta_mortalidade AND ano_baixa IS NOT NULL {filtro}
+            FROM vw_eventos WHERE NOT baixa_em_massa AND ano_baixa IS NOT NULL {filtro}
         ) t
         WHERE ano >= ?
         GROUP BY ano ORDER BY ano"""
