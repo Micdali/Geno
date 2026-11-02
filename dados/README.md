@@ -55,15 +55,19 @@ Armadilhas já encontradas nos CSVs da Receita (detalhes no `FONTE.md`): aspas d
 ### Etapa 3 — montar o banco
 
 ```bash
-python -m dados.etl.construir_db        # gera dados/geno.duckdb (≈ 65 MB, segundos)
+python -m dados.etl.construir_db        # gera dados/geno.duckdb (≈ 85 MB, segundos)
+python -m pytest tests -v               # testes de LGPD sobre o banco gerado
 ```
 
-Aplica `contratos/01_schema.sql`, carrega a camada 1 (datas e valores já convertidos, CNPJ como texto), preenche `motivo_tipo` a partir do `config.yaml` e aplica [`sql/02_views.sql`](sql/02_views.sql). Confere as contagens contra os Parquet e só então troca o banco anterior. As camadas 2 a 4 ficam criadas e vazias (Roger e Micael preenchem).
+Aplica, nesta ordem: `contratos/01_schema.sql`, [`sql/01_schema_extra.sql`](sql/01_schema_extra.sql) (tabelas `simples`, `pais`, `qualificacao` e `situacao_cadastral`, que o contrato não traz), [`sql/02_views.sql`](sql/02_views.sql) e [`sql/03_views_publicas.sql`](sql/03_views_publicas.sql). Carrega a camada 1 (datas e valores já convertidos, CNPJ como texto) e preenche `motivo_tipo` a partir do `config.yaml`. Confere as contagens contra os Parquet e só então troca o banco anterior. As camadas 2 a 4 ficam criadas e vazias (Roger e Micael preenchem).
 
-O que `02_views.sql` muda em relação ao contrato (a conferir pelo grupo):
+Views (mudanças em relação ao contrato, a conferir pelo grupo):
 
-- **`vw_eventos`** mantém as colunas do contrato e acrescenta `tipo_baixa` e `conta_mortalidade`. Só baixas por encerramento (voluntária, judicial, óbito de MEI) contam como mortalidade; baixas de ofício (omissão, inaptidão, registro cancelado) e reorganizações (incorporação, troca matriz/filial) não. A lista está em `config.yaml` (`baixas`), é proposta minha e precisa de confirmação.
-- **`vw_publico`** também esconde o nome fantasia de MEI/empresário individual quando ele repete o nome do titular (com ou sem o CPF). Limite: um nome fantasia que é só o primeiro nome não é detectado.
+- **`vw_eventos`** (`02_views.sql`) mantém as colunas do contrato e acrescenta `tipo_baixa` e `conta_mortalidade`. Só baixas por encerramento (voluntária, judicial, óbito de MEI) contam como mortalidade; baixas de ofício (omissão, inaptidão, registro cancelado) e reorganizações (incorporação, troca matriz/filial) não. A lista está em `config.yaml` (`baixas`), é proposta minha e precisa de confirmação.
+- **`vw_eventos_longo`** (`03_views_publicas.sql`): um evento por linha (abertura ou baixa), por estabelecimento. Colunas: `cnpj`, `tipo_evento`, `data_evento`, `ano`, `motivo`, `cnae_fiscal_principal`, `municipio` (código da Receita), `identificador_matriz_filial`, `opcao_mei`, `natureza_juridica`. Sem filtro de período.
+- **`vw_publico`** (`03_views_publicas.sql`) é a única fonte que o app pode consultar. Mantém as colunas do contrato e acrescenta nome fantasia, razão social, CNAE e descrição, situação e descrição, porte e opções do Simples e do MEI. Regras de LGPD: `razao_social` é NULL em MEI e natureza 2135 (empresário individual); o nome fantasia some quando, em MEI/empresário individual, repete o nome do titular (com ou sem CPF) e em qualquer empresa quando contém `@`. Limite aceito: nomes parciais do titular (ex.: só o primeiro nome) continuam visíveis. Não expõe e-mail, telefone, endereço detalhado nem sócios.
+
+Testes (`tests/test_lgpd.py`, precisam do banco já gerado): conferem que MEI e natureza 2135 não têm razão social, que a view não traz colunas de contato ou endereço detalhado nem valores com cara de e-mail, e que o banco não tem sócios, telefone nem e-mail completo.
 
 Funções de `consultas.py` (leem o banco em modo somente leitura):
 
