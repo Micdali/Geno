@@ -1,0 +1,273 @@
+{
+  "fonte": {
+    "competencia": "2026-10",
+    "data_geracao": "2026-11-02",
+    "commit": "5091397"
+  },
+  "recorte": {
+    "uf": "RJ",
+    "unidade": "estabelecimento",
+    "cnaes": [
+      {
+        "codigo": "8593700",
+        "descricao": "Ensino de idiomas"
+      },
+      {
+        "codigo": "8599604",
+        "descricao": "Treinamento em desenvolvimento profissional e gerencial"
+      },
+      {
+        "codigo": "8599699",
+        "descricao": "Outras atividades de ensino não especificadas anteriormente"
+      },
+      {
+        "codigo": "8599603",
+        "descricao": "Treinamento em informática"
+      },
+      {
+        "codigo": "8599605",
+        "descricao": "Cursos preparatórios para concursos"
+      }
+    ],
+    "periodo": [
+      2021,
+      2025
+    ],
+    "anos_atipicos": []
+  },
+  "parametros": {
+    "limiar_recuo": 50,
+    "lacuna_max_abs": 2,
+    "lacuna_max_pct": 0.05
+  },
+  "estoque": {
+    "total": 333571,
+    "situacoes": [
+      {
+        "codigo": "02",
+        "descricao": "Ativa",
+        "n": 176175,
+        "pct": 52.8
+      },
+      {
+        "codigo": "03",
+        "descricao": "Suspensa",
+        "n": 516,
+        "pct": 0.2
+      },
+      {
+        "codigo": "04",
+        "descricao": "Inapta",
+        "n": 32598,
+        "pct": 9.8
+      },
+      {
+        "codigo": "08",
+        "descricao": "Baixada",
+        "n": 123927,
+        "pct": 37.2
+      },
+      {
+        "codigo": "01",
+        "descricao": "Nula",
+        "n": 355,
+        "pct": 0.1
+      }
+    ],
+    "pct_ativas": 52.8,
+    "pct_baixadas": 37.2
+  },
+  "por_cnae": [
+    {
+      "cnae": "8593700",
+      "descricao": "Ensino de idiomas",
+      "total": 11524,
+      "ativas": 4199,
+      "pct_ativas": 36.4
+    },
+    {
+      "cnae": "8599604",
+      "descricao": "Treinamento em desenvolvimento profissional e gerencial",
+      "total": 53817,
+      "ativas": 26215,
+      "pct_ativas": 48.7
+    },
+    {
+      "cnae": "8599699",
+      "descricao": "Outras atividades de ensino não especificadas anteriormente",
+      "total": 81836,
+      "ativas": 39644,
+      "pct_ativas": 48.4
+    },
+    {
+      "cnae": "8599603",
+      "descricao": "Treinamento em informática",
+      "total": 13113,
+      "ativas": 4775,
+      "pct_ativas": 36.4
+    },
+    {
+      "cnae": "8599605",
+      "descricao": "Cursos preparatórios para concursos",
+      "total": 8270,
+      "ativas": 3305,
+      "pct_ativas": 40.0
+    },
+    {
+      "cnae": "outros",
+      "descricao": "CNAE principal fora do setor (entraram pelo CNAE secundário)",
+      "total": 165011,
+      "ativas": 98037,
+      "pct_ativas": 59.4
+    }
+  ],
+  "por_municipio": [
+    {
+      "municipio": "Rio de Janeiro",
+      "ativos": 97055,
+      "total": 180166,
+      "pct_ativos": 53.9
+    },
+    {
+      "municipio": "Niteroi",
+      "ativos": 11884,
+      "total": 21129,
+      "pct_ativos": 56.2
+    },
+    {
+      "municipio": "Sao Goncalo",
+      "ativos": 5765,
+      "total": 11743,
+      "pct_ativos": 49.1
+    },
+    {
+      "municipio": "Duque de Caxias",
+      "ativos": 4766,
+      "total": 9838,
+      "pct_ativos": 48.4
+    },
+    {
+      "municipio": "Nova Iguacu",
+      "ativos": 4762,
+      "total": 9912,
+      "pct_ativos": 48.0
+    },
+    {
+      "municipio": "Petropolis",
+      "ativos": 3743,
+      "total": 7148,
+      "pct_ativos": 52.4
+    },
+    {
+      "municipio": "Campos dos Goytacazes",
+      "ativos": 3545,
+      "total": 6692,
+      "pct_ativos": 53.0
+    },
+    {
+      "municipio": "Macae",
+      "ativos": 2798,
+      "total": 5363,
+      "pct_ativos": 52.2
+    },
+    {
+      "municipio": "Volta Redonda",
+      "ativos": 2696,
+      "total": 4996,
+      "pct_ativos": 54.0
+    },
+    {
+      "municipio": "Marica",
+      "ativos": 2316,
+      "total": 4089,
+      "pct_ativos": 56.6
+    }
+  ],
+  "perfil": {
+    "n_mei": 118802,
+    "pct_mei": 35.6,
+    "n_simples": 175254,
+    "pct_simples": 52.5,
+    "n_matriz": 327495,
+    "pct_matriz": 98.2,
+    "n_filial": 6076,
+    "pct_filial": 1.8
+  },
+  "eventos": [
+    {
+      "ano": 2021,
+      "aberturas": 30048,
+      "baixas": 8652,
+      "baixas_oficio": 15,
+      "saldo": 21411,
+      "ativos_fim_ano": 138271
+    },
+    {
+      "ano": 2022,
+      "aberturas": 27351,
+      "baixas": 10847,
+      "baixas_oficio": 2,
+      "saldo": 16506,
+      "ativos_fim_ano": 154775
+    },
+    {
+      "ano": 2023,
+      "aberturas": 28277,
+      "baixas": 13998,
+      "baixas_oficio": 0,
+      "saldo": 14279,
+      "ativos_fim_ano": 169054
+    },
+    {
+      "ano": 2024,
+      "aberturas": 29001,
+      "baixas": 16215,
+      "baixas_oficio": 0,
+      "saldo": 12786,
+      "ativos_fim_ano": 181840
+    },
+    {
+      "ano": 2025,
+      "aberturas": 32426,
+      "baixas": 18364,
+      "baixas_oficio": 0,
+      "saldo": 14062,
+      "ativos_fim_ano": 195902
+    }
+  ],
+  "mortalidade": {
+    "horizonte_anos": 2,
+    "coortes": [
+      {
+        "ano": 2021,
+        "abertos": 30048,
+        "baixados": 7620,
+        "baixados_oficio": 1,
+        "taxa_pct": 25.4
+      },
+      {
+        "ano": 2022,
+        "abertos": 27351,
+        "baixados": 7637,
+        "baixados_oficio": 1,
+        "taxa_pct": 27.9
+      },
+      {
+        "ano": 2023,
+        "abertos": 28277,
+        "baixados": 8334,
+        "baixados_oficio": 0,
+        "taxa_pct": 29.5
+      }
+    ],
+    "abertos": 85676,
+    "baixados": 23591,
+    "taxa_pct": 27.5,
+    "excluindo": "baixas de ofício"
+  },
+  "cobertura_scraping": {
+    "ativos": 176175,
+    "ativos_com_dominio_proprio": 27296,
+    "pct": 15.5
+  }
+}
