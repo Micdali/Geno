@@ -1,7 +1,7 @@
 """Monta o banco dados/geno.duckdb a partir dos Parquet do ETL (dono: Lucas).
 
 Cria as tabelas do contrato 1 (contratos/01_schema.sql), carrega a camada 1 (identidade) já com
-tipos tratados, preenche motivo_tipo a partir do config.yaml e aplica dados/sql/02_views.sql.
+tipos tratados, carrega o seed motivo_classe e aplica as views de dados/sql/.
 As camadas 2 a 4 ficam criadas e vazias (são preenchidas por Roger e Micael).
 
 O banco é montado num arquivo provisório e só substitui o anterior depois de validado.
@@ -81,8 +81,16 @@ def carregar(con: duckdb.DuckDBPyConnection, cfg: dict) -> None:
                dominio_email
         FROM read_parquet({pq('estabelecimentos/parte_*.parquet')})""")
 
-    linhas = [(cod, tipo) for tipo, cods in cfg["baixas"].items() for cod in cods]
-    con.executemany("INSERT INTO motivo_tipo VALUES (?, ?)", linhas)
+    seed = RAIZ / cfg["caminhos"]["seed_motivos"]
+    con.execute(f"INSERT INTO motivo_classe SELECT * FROM read_csv({q(seed.as_posix())}, header=true, all_varchar=true)")
+    codigos_seed = {r[0] for r in con.execute("SELECT codigo_motivo FROM motivo_classe").fetchall()}
+    codigos_motivo = {r[0] for r in con.execute("SELECT codigo FROM motivo").fetchall()}
+    if codigos_seed != codigos_motivo:
+        raise SystemExit(f"ERRO: o seed {seed.name} não cobre exatamente a tabela motivo "
+                         f"(faltam {sorted(codigos_motivo - codigos_seed)}, sobram {sorted(codigos_seed - codigos_motivo)}).")
+    ruins = con.execute("SELECT DISTINCT classe FROM motivo_classe WHERE classe NOT IN ('voluntaria', 'oficio', 'outra')").fetchall()
+    if ruins:
+        raise SystemExit(f"ERRO: classes inválidas no seed: {[r[0] for r in ruins]}")
 
 
 def conferir(con: duckdb.DuckDBPyConnection, cfg: dict) -> None:

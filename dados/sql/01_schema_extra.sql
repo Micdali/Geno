@@ -32,3 +32,15 @@ CREATE TABLE IF NOT EXISTS simples (
     data_opcao_mei         DATE,
     data_exclusao_mei      DATE
 );
+
+-- Classe de cada motivo de situação cadastral, vinda do seed versionado dados/sql/seeds/motivo_classe.csv.
+--   voluntaria: encerramento pedido pelo titular
+--   oficio    : ato administrativo da Receita (inaptidão, omissão, registro cancelado...); inclui as
+--               baixas em massa (01/02/2018 motivo 67, 31/12/2008 motivo 71, 09/02/2015 motivo 73)
+--   outra     : o resto (óbito de MEI, falência, reorganizações, etapas de fluxo)
+CREATE TABLE IF NOT EXISTS motivo_classe (
+    codigo_motivo  VARCHAR PRIMARY KEY,   -- -> motivo.codigo
+    descricao      VARCHAR,
+    classe         VARCHAR,               -- 'voluntaria' | 'oficio' | 'outra'
+    justificativa  VARCHAR
+);

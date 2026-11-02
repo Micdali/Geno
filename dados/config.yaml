@@ -51,16 +51,10 @@ recorte:
     - aol.com
     - protonmail.com
 
-# Classificação do motivo da situação cadastral das empresas baixadas (situação 08), usada em
-# vw_eventos para não inflar a mortalidade com baixas administrativas (relatório, seções 3.4 e 10.2).
-# Proposta do Lucas em 30/10/2026, A CONFIRMAR PELO GRUPO. Motivo fora das listas vira 'outro'.
-# Contam como mortalidade: voluntaria, judicial e obito_mei.
-baixas:
-  voluntaria: ["01", "54"]          # extinção por encerramento voluntário; extinção ME/EPP (LC 123)
-  judicial: ["05", "10"]            # encerramento de falência; encerramento da liquidação judicial
-  obito_mei: ["75"]                 # óbito do titular do MEI
-  oficio: ["09", "66", "67", "71", "73"]  # não início, inaptidão, registro cancelado, omissão contumaz
-  reorganizacao: ["02", "07", "28", "31", "33"]  # incorporação, mudança matriz/filial: não é fechamento
+# Parâmetros padrão das consultas de dados/geno_db/consultas.py (PROVISÓRIOS, a confirmar pelo grupo).
+consultas:
+  periodo: [2021, 2025]     # só anos completos; o banco tem eventos até out/2026
+  limiar_recuo: 30          # nº mínimo de estabelecimentos do nicho antes de ampliar o CNAE
 
 # Situação cadastral: códigos do layout oficial (cnpj-metadados.pdf), com dois dígitos como nos dados.
 situacao_cadastral:
@@ -72,6 +66,7 @@ situacao_cadastral:
 
 caminhos:
   db: "dados/geno.duckdb"         # banco final (fora do Git)
+  seed_motivos: "dados/sql/seeds/motivo_classe.csv"   # classe de cada motivo de baixa (versionado)
   raw: "dados/raw"                # downloads temporários (fora do Git)
   tmp: "dados/raw/tmp"            # CSV extraído de um ZIP por vez; apagado após validar
   parquet: "dados/parquet"        # saídas do ETL (fora do Git)
