@@ -87,7 +87,8 @@ def ja_classificados(caminho=config.CLASSIFICACAO_JSONL) -> set[tuple[str, str, 
 def classificar_um(empresa: dict, cnae: str | None = None, gerar=None) -> dict:
     """Classifica uma empresa. `gerar` é injetável para testes."""
     prompt = _prompt_modelo().format(cnae=cnae or "não informado", texto=empresa["texto"])
-    saida, modelo = (gerar or llm.gerar_json)(prompt, SCHEMA, [config.MODELO_CLASSIFICACAO], temperatura=0.0)
+    saida, modelo = (gerar or llm.gerar_json)(prompt, SCHEMA, [config.MODELO_CLASSIFICACAO], temperatura=0.0,
+                                                   timeout_s=config.TIMEOUT_LOTE_S)
     for c in CAMPOS_TEXTO:
         saida[c] = (saida.get(c) or "indeterminado").strip() or "indeterminado"
     return {

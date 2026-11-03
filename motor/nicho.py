@@ -57,7 +57,7 @@ def propor_recorte(ideia: str, respostas: dict[str, str] | None = None, gerar=No
     prompt = (config.PASTA_PROMPTS / f"nicho_{PROMPT_VERSAO}.md").read_text(encoding="utf-8").format(
         max_perguntas=MAX_PERGUNTAS, cnaes=cnaes, ideia=ideia.strip(), respostas=extra)
     r, _ = (gerar or llm.gerar_json)(prompt, SCHEMA, config.MODELOS_AO_VIVO,
-                                         tentativas=config.TENTATIVAS_AO_VIVO)
+                                         tentativas=config.TENTATIVAS_AO_VIVO, timeout_s=config.TIMEOUT_AO_VIVO_S)
     r["uf"] = config.UF_PILOTO
     r["cnaes"] = [c for c in r.get("cnaes", []) if c in config.CNAES_PILOTO] or list(config.CNAES_PILOTO)
     r["perguntas"] = [] if respostas and len(respostas) >= MAX_PERGUNTAS else r.get("perguntas", [])[:MAX_PERGUNTAS]

@@ -25,12 +25,13 @@ CLASSIFICACAO_JSONL = CACHE / "classificacao.jsonl"  # uma linha por chamada, re
 EMBEDDING_PARQUET = CACHE / "embedding.parquet"
 
 MODELO_CLASSIFICACAO = os.getenv("LLM_MODELO_CLASSIFICACAO", "gemini-3.5-flash-lite")
-MODELO_ANALISE = os.getenv("LLM_MODELO_ANALISE", "gemini-3.8-flash")
-# Reserva se o modelo da análise estiver fora do ar (503 visto em 30/10/2026)
-MODELO_ANALISE_RESERVA = os.getenv("LLM_MODELO_ANALISE_RESERVA", "gemini-3.6-flash")
-# Ordem tentada nas chamadas ao vivo; o Flash-Lite por último (os dois Flash deram 503 em 03/11/2026)
-MODELOS_AO_VIVO = [MODELO_ANALISE, MODELO_ANALISE_RESERVA, MODELO_CLASSIFICACAO]
-TENTATIVAS_AO_VIVO = 2  # por modelo: o usuário está esperando na tela
+# Ordem tentada nas chamadas ao vivo (tela 2 e diferencial). Em 03/11/2026: 3.8-flash deu 504 em 3 de 3
+# chamadas e 503 antes; 3.6-flash respondeu em 4 a 23 s; os dois Flash-Lite, em menos de 2 s.
+MODELOS_AO_VIVO = [m.strip() for m in os.getenv(
+    "LLM_MODELOS_AO_VIVO", "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.6-flash").split(",") if m.strip()]
+TENTATIVAS_AO_VIVO = 2   # por modelo: o usuário está esperando na tela
+TIMEOUT_AO_VIVO_S = 15   # desiste da chamada e passa para o próximo modelo
+TIMEOUT_LOTE_S = 60      # classificação em massa (antes da demo)
 
 # Multilíngue, 384 dimensões (contrato 1: FLOAT[384]); roda local, não gasta cota
 MODELO_EMBEDDING = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"

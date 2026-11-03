@@ -54,7 +54,7 @@ Vindas do grupo: atributos = superconjunto v0 do contrato 3; regra de lacuna e p
 Decisões do motor (provisórias, a calibrar com dado real; valores em `config.py`):
 
 - **Só texto do site e a descrição do CNAE vão para o LLM.** Nome, CNPJ, sócios e contatos não.
-- **Modelos:** classificação `gemini-3.5-flash-lite`; ao vivo tenta `gemini-3.8-flash`, depois `gemini-3.6-flash`, depois `gemini-3.5-flash-lite`, com 2 tentativas por modelo. Os dois Flash deram 503 (sobrecarga) em 30/10 e 03/11/2026.
+- **Modelos:** classificação `gemini-3.5-flash-lite`. Ao vivo (`LLM_MODELOS_AO_VIVO`): `gemini-3.5-flash-lite`, depois `gemini-3.1-flash-lite`, depois `gemini-3.6-flash`; 2 tentativas por modelo e no máximo 15 s por chamada. O `gemini-3.8-flash` ficou de fora: deu 503 (sobrecarga) em 30/10 e 03/11 e 504 (tempo esgotado) em 3 de 3 chamadas em 03/11/2026, enquanto os Flash-Lite responderam em menos de 2 s.
 - **Embeddings:** `paraphrase-multilingual-MiniLM-L12-v2` (384 dim, bate com o contrato 1). O vetor vem do texto da classificação (nicho, serviço, público, canal).
 - **Concorrentes:** semelhança de cosseno ≥ 0,35 entre o recorte da ideia e cada empresa classificada; os 10 primeiros vão para a tela.
 - **Lacunas:** a combinação da ideia (público × serviço × canal) e seus pares. Uma empresa "atende" público ou serviço quando a semelhança do texto dela com o da ideia é ≥ 0,45; canal compara a lista fechada (híbrido atende presencial e online). Quem tem o campo "indeterminado" fica fora da conta daquela combinação. Só empresas ativas contam. Abaixo de 50 ativas analisadas: "dados insuficientes" (regra do Lucas).

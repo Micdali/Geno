@@ -22,10 +22,9 @@ def main() -> int:
         return 1
 
     client = genai.Client()  # lê GEMINI_API_KEY do ambiente
-    modelos = {
-        "classificação": os.getenv("LLM_MODELO_CLASSIFICACAO"),
-        "análise": os.getenv("LLM_MODELO_ANALISE"),
-    }
+    modelos = {"classificação": os.getenv("LLM_MODELO_CLASSIFICACAO")}
+    ao_vivo = [m.strip() for m in os.getenv("LLM_MODELOS_AO_VIVO", "").split(",") if m.strip()]
+    modelos.update({f"ao vivo {i}": m for i, m in enumerate(ao_vivo, 1)} or {"ao vivo": None})
     falhou = False
     for uso, modelo in modelos.items():
         if not modelo:
