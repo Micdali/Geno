@@ -13,6 +13,6 @@ Em `exemplos/` há um arquivo de exemplo para cada contrato, com **empresas e n�
 
 ## Status
 
-Todos em **v0 — aguardando aprovação do grupo** (prazo: qui 15/10). Pendência principal: o conjunto final de atributos da classificação (contrato 3), que também muda as colunas de `classificacao` e `gabarito` no contrato 1.
+Todos em **v0 — aguardando aprovação do grupo** (prazo: qui 15/10). O contrato 1 está na **v0.1** (03/11): as visões ganharam colunas do bloco de dados, sem remover nenhuma. Pendência principal: o conjunto final de atributos da classificação (contrato 3), que também muda as colunas de `classificacao` e `gabarito` no contrato 1.
 
 Para mudar um contrato depois de aprovado, ver [`CONTRIBUTING.md`](../CONTRIBUTING.md).
