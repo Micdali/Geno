@@ -7,8 +7,9 @@
 Regras comuns:
   * Conexão somente leitura. O caminho do banco vem de `caminhos.db` do config.yaml (relativo à raiz
     do repositório) e pode ser trocado pela variável de ambiente GENO_DB.
-  * Padrões de período e de recuo vêm de `consultas` no config.yaml (provisórios: 2021 a 2025 e
-    30 estabelecimentos). O ano corrente é parcial, por isso o período padrão termina em 2025.
+  * Padrões de período e de recuo vêm de `consultas` no config.yaml (`periodo` e `limiar_recuo`,
+    decididos por regra em dados/decisoes/DECISOES.md). O ano corrente é parcial, por isso o período
+    padrão termina no ano anterior ao da competência.
   * Toda consulta é parametrizada com `?`; nenhum valor vindo do chamador entra no texto do SQL.
     Os códigos de CNAE são validados (3 a 7 dígitos) antes de qualquer consulta.
   * A unidade é o ESTABELECIMENTO (matriz e filiais contam separadamente).
@@ -168,9 +169,9 @@ def mortalidade_setor(cnaes: list[str], municipio: str | None = None, ano_ini: i
             ponto de partida tem de ser a subclasse; com 5 ou 3 dígitos, os níveis maiores que o
             informado são pulados.
         municipio: código de município da Receita (texto), ou None.
-        ano_ini, ano_fim: período inclusivo; padrão do config.yaml (2021 a 2025).
+        ano_ini, ano_fim: período inclusivo; padrão `periodo` do config.yaml (hoje 2021 a 2025).
         horizonte: anos de observação depois da abertura (inteiro >= 1).
-        min_estab: limiar do recuo; padrão `limiar_recuo` do config.yaml (30).
+        min_estab: limiar do recuo; padrão `limiar_recuo` do config.yaml (hoje 50).
         usar_secundario: se True, também conta quem tem o CNAE só como atividade secundária.
 
     Returns:

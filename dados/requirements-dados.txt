@@ -1,0 +1,14 @@
+# Dependências do bloco de dados (dados/), com versões FIXAS: reproduz exatamente o ambiente em que os
+# números oficiais foram gerados (Python 3.13.14). O requirements.txt da raiz é do grupo todo (traz também
+# PyTorch e Streamlit, que o banco não usa) e usa versões mínimas.
+#
+#   python -m venv .venv && .venv\Scripts\activate     (Linux/Mac: source .venv/bin/activate)
+#   pip install -r dados/requirements-dados.txt
+duckdb==2.0.0
+pandas==3.1.0
+numpy==2.5.4
+pyarrow==26.0.0
+requests==2.34.2
+PyYAML==6.0.3
+tqdm==4.70.1
+pytest==9.2.0
