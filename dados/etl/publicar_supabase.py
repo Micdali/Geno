@@ -63,7 +63,9 @@ def main(argv: list[str] | None = None) -> int:
     con = duckdb.connect(str(db), read_only=True)
     con.execute("INSTALL postgres; LOAD postgres;")
     con.execute("ATTACH ? AS pg (TYPE postgres)", [url])
-    con.execute(f"CALL postgres_execute('pg', 'DROP SCHEMA IF EXISTS {SCHEMA_PG} CASCADE; CREATE SCHEMA {SCHEMA_PG};')")
+    # o Postgres não aceita dois comandos numa chamada preparada: um postgres_execute por comando
+    con.execute(f"CALL postgres_execute('pg', 'DROP SCHEMA IF EXISTS {SCHEMA_PG} CASCADE')")
+    con.execute(f"CALL postgres_execute('pg', 'CREATE SCHEMA {SCHEMA_PG}')")
     falhas = []
     for t in objetos:
         try:
