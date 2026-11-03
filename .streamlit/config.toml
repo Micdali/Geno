@@ -1,7 +1,18 @@
+# Tema do Geno (Mariana). O resto do visual está no CSS de app/geno/tema.py.
 [theme]
 base = "light"
-primaryColor = "#0F766E"
+primaryColor = "#1F6F5C"             # verde-floresta: botões, links, barra de progresso
+backgroundColor = "#FAF3E7"          # creme: fundo da página
+secondaryBackgroundColor = "#F0E3C8" # areia: cards, sidebar, campos
+textColor = "#17261F"                # tinta esverdeada: texto
+font = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap, sans-serif"
+headingFont = "Fraunces:https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap, Georgia, serif"
+
+[client]
+toolbarMode = "minimal"              # esconde o botão "Deploy" do Streamlit
+
 [server]
 headless = true
+
 [browser]
 gatherUsageStats = false
