@@ -8,12 +8,14 @@ import hashlib
 import json
 import re
 
+import httpx
 import numpy as np
+import openai
 import pandas as pd
 import pytest
 
 from motor import analisar as mod_analisar
-from motor import classificar, confianca, config, diferencial, embeddings, lacunas, nicho
+from motor import classificar, confianca, config, diferencial, embeddings, lacunas, llm, nicho
 
 PARAMS = {"max_abs": 2, "max_pct": 0.05, "minimo_nicho": 50}
 
@@ -60,6 +62,31 @@ def test_textos_por_empresa_filtra_e_ordena():
     assert e.loc["33333333000103", "fonte"] == "site_arquivado"
 
 
+def test_textos_por_empresa_um_site_por_cnpj():
+    linha = {"cnpj": "44444444000104", "tipo": "home", "status_http": 200, "bloqueado": False, "coletado_em": "2026-11-03"}
+    t = pd.DataFrame([
+        {**linha, "site": "contador.com.br", "metodo": "email", "url": "https://contador.com.br",
+         "texto": "Escritório de contabilidade com muito texto " * 20},
+        {**linha, "site": "escola.com.br", "metodo": "rodape_cnpj", "url": "https://escola.com.br", "texto": "Escola de inglês."},
+        {**linha, "site": "outro.com.br", "metodo": "nome_titulo", "url": "https://outro.com.br", "texto": "Consultoria."},
+    ])
+    e = classificar.textos_por_empresa(t)
+    assert len(e) == 1
+    assert e.iloc[0]["site"] == "escola.com.br" and e.iloc[0]["metodo"] == "rodape_cnpj"
+    assert "contabilidade" not in e.iloc[0]["texto"] and "Consultoria" not in e.iloc[0]["texto"]
+
+
+def test_site_fora_de_ensino_vira_indeterminado_e_sai_dos_embeddings():
+    def gerar(prompt, schema, modelos, **kw):
+        return classificacao_falsa(site_de_ensino=False, canal_atendimento="presencial"), "modelo-falso"
+
+    empresa = {"cnpj": "55555555000105", "fonte": "site", "texto": "Contabilidade.", "hash_texto": "x", "site": "c.com.br"}
+    r = classificar.classificar_um(empresa, gerar=gerar)
+    assert r["confianca"] == "baixa"
+    assert all(r[c] == "indeterminado" for c in classificar.CAMPOS_TEXTO + ["canal_atendimento", "modelo_receita"])
+    assert embeddings.texto_origem(r) == ""
+
+
 def test_classificacao_retomavel_e_reclassifica_se_texto_mudar(tmp_path, monkeypatch):
     chamadas = []
 
@@ -69,6 +96,7 @@ def test_classificacao_retomavel_e_reclassifica_se_texto_mudar(tmp_path, monkeyp
 
     monkeypatch.setattr(classificar.llm, "gerar_json", gerar)
     monkeypatch.setattr(classificar, "_cnaes", lambda cnpjs: {})
+    monkeypatch.setattr(config, "MODELO_CLASSIFICACAO", "modelo-falso")
     csv, saida = tmp_path / "t.csv", tmp_path / "c.jsonl"
     _textos().to_csv(csv, index=False)
 
@@ -89,6 +117,27 @@ def test_classificacao_retomavel_e_reclassifica_se_texto_mudar(tmp_path, monkeyp
     assert linha["publico_atendido"] == "indeterminado"  # vazio vira indeterminado
     assert linha["prompt_versao"] == classificar.PROMPT_VERSAO and linha["modelo_llm"] == "modelo-falso"
     assert not any("CNPJ" in p and "11111111000101" in p for p in chamadas)  # CNPJ não vai ao LLM
+
+
+def test_trocar_de_modelo_reclassifica(tmp_path, monkeypatch):
+    usados = []
+
+    def gerar(prompt, schema, modelos, **kw):
+        usados.append(modelos[0])
+        return classificacao_falsa(), modelos[0]
+
+    monkeypatch.setattr(classificar.llm, "gerar_json", gerar)
+    monkeypatch.setattr(classificar, "_cnaes", lambda cnpjs: {})
+    csv, saida = tmp_path / "t.csv", tmp_path / "c.jsonl"
+    _textos().to_csv(csv, index=False)
+    monkeypatch.setattr(config, "MODELO_CLASSIFICACAO", "modelo-a")
+    classificar.rodar(csv, saida=saida)
+    monkeypatch.setattr(config, "MODELO_CLASSIFICACAO", "modelo-b")
+    classificar.rodar(csv, saida=saida)
+    classificar.rodar(csv, saida=saida)
+    assert usados == ["modelo-a"] * 2 + ["modelo-b"] * 2
+    assert set(classificar.carregar(saida)["modelo_llm"]) == {"modelo-b"}  # vale a última
+    assert set(classificar.carregar(saida, modelo="modelo-a")["modelo_llm"]) == {"modelo-a"}
 
 
 def test_texto_origem_ignora_indeterminado():
@@ -190,6 +239,53 @@ def test_diferencial_sem_llm_quando_falha():
     conc = [{"o_que_oferece": "x", "publico": "y", "canal": "online", "situacao": "ativa", "semelhanca": 0.8}]
     d = diferencial.gerar("ideia", RECORTE, conc, [], gerar_json=falha)
     assert set(d) == set(diferencial.CAMPOS) and "não respondeu" in d["nao_verificado"]
+
+
+# --- adaptador do LLM (sem rede) --------------------------------------------------------------
+def test_schema_estrito_da_openai_sem_mudar_o_original():
+    original = json.dumps(nicho.SCHEMA, sort_keys=True)
+    s = llm.schema_estrito(nicho.SCHEMA)
+    assert json.dumps(nicho.SCHEMA, sort_keys=True) == original  # o Gemini recebe o schema original
+    objetos = [s, s["properties"]["atributos"], s["properties"]["perguntas"]["items"]]
+    for o in objetos:
+        assert o["additionalProperties"] is False and o["required"] == list(o["properties"])
+    for schema in (classificar.SCHEMA, diferencial.SCHEMA):
+        e = llm.schema_estrito(schema)
+        assert e["additionalProperties"] is False and set(e["required"]) == set(schema["properties"])
+
+
+def test_erro_temporario_da_openai():
+    req = httpx.Request("POST", "https://api.openai.com/v1/responses")
+
+    def status(codigo, classe=openai.APIStatusError):
+        return classe("x", response=httpx.Response(codigo, request=req), body=None)
+
+    assert llm._temporario(status(429, openai.RateLimitError))
+    assert llm._temporario(status(500, openai.InternalServerError))
+    assert llm._temporario(status(503, openai.InternalServerError))
+    assert llm._temporario(openai.APITimeoutError(request=req))
+    assert llm._temporario(openai.APIConnectionError(request=req))
+    assert not llm._temporario(status(400, openai.BadRequestError))
+    assert not llm._temporario(status(401, openai.AuthenticationError))
+    assert not llm._temporario(ValueError("schema"))
+
+
+def test_gerar_json_usa_o_provedor_e_troca_de_modelo(monkeypatch):
+    req = httpx.Request("POST", "https://api.openai.com/v1/responses")
+    chamadas = []
+
+    def openai_falso(prompt, schema, modelo, *a):
+        chamadas.append(modelo)
+        if modelo == "a":
+            raise openai.RateLimitError("x", response=httpx.Response(429, request=req), body=None)
+        return '{"ok": true}'
+
+    monkeypatch.setattr(config, "LLM_PROVEDOR", "openai")
+    monkeypatch.setattr(llm, "_gerar_openai", openai_falso)
+    monkeypatch.setattr(llm, "_gerar_gemini", lambda *a: pytest.fail("chamou o Gemini"))
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+    assert llm.gerar_json("p", {}, ["a", "b"], tentativas=2) == ({"ok": True}, "b")
+    assert chamadas == ["a", "a", "b"]
 
 
 # --- ponta a ponta ----------------------------------------------------------------------------

@@ -14,7 +14,8 @@ beautifulsoup4>=4.12
 # Motor (motor/)
 sentence-transformers>=3.0
 python-dotenv>=1.0
-google-genai>=1.0          # SDK oficial do Gemini (from google import genai)
+openai>=3.44              # SDK oficial da OpenAI (provedor padrão do motor)
+google-genai>=1.0          # SDK oficial do Gemini (from google import genai), reserva
 
 # App (app/) — se a stack escolhida for Streamlit
 streamlit>=1.40

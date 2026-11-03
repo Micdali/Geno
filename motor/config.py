@@ -24,11 +24,25 @@ TEXTOS_SITES = RAIZ / "enriquecimento" / "cache" / "textos_sites.csv"
 CLASSIFICACAO_JSONL = CACHE / "classificacao.jsonl"  # uma linha por chamada, retomável
 EMBEDDING_PARQUET = CACHE / "embedding.parquet"
 
-MODELO_CLASSIFICACAO = os.getenv("LLM_MODELO_CLASSIFICACAO", "gemini-3.5-flash-lite")
-# Ordem tentada nas chamadas ao vivo (tela 2 e diferencial). Em 03/11/2026: 3.8-flash deu 504 em 3 de 3
-# chamadas e 503 antes; 3.6-flash respondeu em 4 a 23 s; os dois Flash-Lite, em menos de 2 s.
-MODELOS_AO_VIVO = [m.strip() for m in os.getenv(
-    "LLM_MODELOS_AO_VIVO", "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.6-flash").split(",") if m.strip()]
+# "openai" (chave paga, desde 03/11/2026) ou "gemini" (reserva; plano gratuito, 15 chamadas por minuto)
+LLM_PROVEDOR = os.getenv("LLM_PROVEDOR", "gemini").strip().lower()
+# Padrões por provedor; LLM_MODELO_CLASSIFICACAO e LLM_MODELOS_AO_VIVO no .env têm prioridade.
+_PADROES = {
+    # gpt-6-luna: o modelo de alto volume da OpenAI ($0,10/$0,50 por 1M tokens em 03/11/2026).
+    # Os dois de reserva também aceitam schema estrito e effort "none" (testado em 03/11/2026).
+    "openai": ("gpt-6-luna", "gpt-6-luna,gpt-5.6-luna,gpt-5.4-nano"),
+    # Em 03/11/2026: 3.8-flash deu 504 em 3 de 3 chamadas e 503 antes; 3.6-flash respondeu em 4 a 23 s;
+    # os dois Flash-Lite, em menos de 2 s.
+    "gemini": ("gemini-3.5-flash-lite", "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.6-flash"),
+}
+if LLM_PROVEDOR not in _PADROES:
+    raise ValueError(f"LLM_PROVEDOR inválido: {LLM_PROVEDOR!r} (use 'openai' ou 'gemini')")
+MODELO_CLASSIFICACAO = os.getenv("LLM_MODELO_CLASSIFICACAO") or _PADROES[LLM_PROVEDOR][0]
+# Ordem tentada nas chamadas ao vivo (tela 2 e diferencial)
+MODELOS_AO_VIVO = [m.strip() for m in (os.getenv("LLM_MODELOS_AO_VIVO") or _PADROES[LLM_PROVEDOR][1]).split(",")
+                   if m.strip()]
+# Esforço de raciocínio nos modelos da OpenAI: "none" é o mais rápido e o indicado para classificar.
+OPENAI_ESFORCO = os.getenv("OPENAI_ESFORCO", "none").strip()
 TENTATIVAS_AO_VIVO = 2   # por modelo: o usuário está esperando na tela
 TIMEOUT_AO_VIVO_S = 15   # desiste da chamada e passa para o próximo modelo
 TIMEOUT_LOTE_S = 60      # classificação em massa (antes da demo)

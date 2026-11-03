@@ -1,41 +1,40 @@
-"""Teste mínimo da conexão com o Gemini (dono: Micael).
+"""Teste mínimo da conexão com o LLM configurado em LLM_PROVEDOR (dono: Micael).
 
 Uso:  python -m motor.teste_conexao
 
-Carrega o .env, chama os dois modelos configurados com "responda só OK" e
-imprime a resposta. Nunca imprime a chave.
+Carrega o .env, pede a cada modelo configurado um JSON {"ok": true} pelo mesmo caminho do
+motor (motor.llm.gerar_json) e imprime a resposta e o tempo. Nunca imprime a chave.
 """
 from __future__ import annotations
 
 import os
 import sys
+import time
 
-from dotenv import load_dotenv
-from google import genai
+from . import config, llm
+
+CHAVES = {"openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY"}
+SCHEMA = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}
 
 
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # acentos no terminal do Windows
-    load_dotenv()
-    if not os.getenv("GEMINI_API_KEY"):
-        print("GEMINI_API_KEY vazia: cole a chave no .env (nunca no chat nem no Git).")
+    chave = CHAVES[config.LLM_PROVEDOR]
+    print(f"Provedor: {config.LLM_PROVEDOR}")
+    if not os.getenv(chave):
+        print(f"{chave} vazia: cole a chave no .env (nunca no chat nem no Git).")
         return 1
 
-    client = genai.Client()  # lê GEMINI_API_KEY do ambiente
-    modelos = {"classificação": os.getenv("LLM_MODELO_CLASSIFICACAO")}
-    ao_vivo = [m.strip() for m in os.getenv("LLM_MODELOS_AO_VIVO", "").split(",") if m.strip()]
-    modelos.update({f"ao vivo {i}": m for i, m in enumerate(ao_vivo, 1)} or {"ao vivo": None})
+    modelos = {"classificação": config.MODELO_CLASSIFICACAO}
+    modelos.update({f"ao vivo {i}": m for i, m in enumerate(config.MODELOS_AO_VIVO, 1)})
     falhou = False
     for uso, modelo in modelos.items():
-        if not modelo:
-            print(f"[{uso}] LLM_MODELO_* não definido no .env")
-            falhou = True
-            continue
+        inicio = time.monotonic()
         try:
-            r = client.models.generate_content(model=modelo, contents="Responda só OK.")
-            print(f"[{uso}] {modelo}: {r.text.strip()!r}")
+            r, _ = llm.gerar_json('Responda {"ok": true}.', SCHEMA, [modelo], tentativas=1, timeout_s=30)
+            print(f"[{uso}] {modelo}: {r} em {time.monotonic() - inicio:.1f} s")
         except Exception as e:  # mostra só tipo e mensagem do erro da API
-            print(f"[{uso}] {modelo}: ERRO {type(e).__name__}: {e}")
+            print(f"[{uso}] {modelo}: ERRO {type(e).__name__}: {str(e)[:200]}")
             falhou = True
     return 1 if falhou else 0
 

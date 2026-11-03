@@ -7,15 +7,17 @@ Transforma o texto dos sites em campos padronizados e responde à pergunta do us
 ## Como rodar
 
 ```bash
-# 0. Pré-requisitos: .env com GEMINI_API_KEY; dados/geno.duckdb (pedir ao Lucas);
+# 0. Pré-requisitos: .env com LLM_PROVEDOR=openai e OPENAI_API_KEY (ou gemini e GEMINI_API_KEY);
+#    dados/geno.duckdb (pedir ao Lucas);
 #    enriquecimento/cache/textos_sites.csv (Roger: python -m enriquecimento.exportar_textos)
 python -m motor.teste_conexao          # confere a chave e os modelos
 
 # 1. Antes da demo (não roda ao vivo)
-python -m motor.classificar            # texto dos sites -> motor/cache/classificacao.jsonl (retomável)
+python -m motor.classificar --workers 6   # texto dos sites -> motor/cache/classificacao.jsonl (retomável)
+                                          # com o Gemini gratuito, acrescente --rpm 13
 python -m motor.embeddings             # classificação -> motor/cache/embedding.parquet (local, sem cota)
 
-# 2. Análise de uma ideia (chama o Gemini ao vivo)
+# 2. Análise de uma ideia (chama o LLM ao vivo)
 python -m motor.analisar "escola de inglês online para adultos 40+"
 
 # Testes (sem rede, sem cota, sem banco)
@@ -36,13 +38,13 @@ resultado = analisar(ideia, recorte=r)
 
 | Arquivo | O que faz | LLM? |
 |---|---|---|
-| `classificar.py` + `prompts/classificacao_v1.md` | Texto do site → contrato 3. Retomável: só reclassifica se o prompt ou o texto mudar (`hash_texto`). | Sim, antes da demo |
+| `classificar.py` + `prompts/classificacao_v3.md` | Texto do site → contrato 3. Retomável: só reclassifica se o prompt, o texto (`hash_texto`) ou o modelo mudar. | Sim, antes da demo |
 | `embeddings.py` | Vetor de 384 dimensões de cada empresa, a partir da classificação | Não (local) |
 | `nicho.py` + `prompts/nicho_v1.md` | Ideia → recorte (público, serviço, canal, CNAE) e perguntas de afunilamento | Sim, ao vivo |
 | `lacunas.py` | Concorrentes por semelhança e lacunas determinísticas, com `cnpjs_base` | Não |
 | `confianca.py` | Alta, média ou baixa | Não |
 | `diferencial.py` + `prompts/diferencial_v1.md` | Em comum / possíveis diferenciais / não verificado | Sim, ao vivo |
-| `llm.py` | Gemini com JSON por schema, novas tentativas e modelos de reserva | — |
+| `llm.py` | OpenAI ou Gemini (`LLM_PROVEDOR`) com JSON por schema, novas tentativas e modelos de reserva | — |
 | `analisar.py` | Junta tudo no contrato 4. `exemplo(ideia)` devolve o arquivo fictício, só para desenvolver o app | — |
 
 As saídas ficam em `motor/cache/` (fora do Git), e não no `geno.duckdb`, porque o `construir_db` do Lucas apaga as tabelas das camadas 2 a 4.
@@ -54,7 +56,12 @@ Vindas do grupo: atributos = superconjunto v0 do contrato 3; regra de lacuna e p
 Decisões do motor (provisórias, a calibrar com dado real; valores em `config.py`):
 
 - **Só texto do site e a descrição do CNAE vão para o LLM.** Nome, CNPJ, sócios e contatos não.
-- **Modelos:** classificação `gemini-3.5-flash-lite`. Ao vivo (`LLM_MODELOS_AO_VIVO`): `gemini-3.5-flash-lite`, depois `gemini-3.1-flash-lite`, depois `gemini-3.6-flash`; 2 tentativas por modelo e no máximo 15 s por chamada. O `gemini-3.8-flash` ficou de fora: deu 503 (sobrecarga) em 30/10 e 03/11 e 504 (tempo esgotado) em 3 de 3 chamadas em 03/11/2026, enquanto os Flash-Lite responderam em menos de 2 s.
+- **Um site por CNPJ.** Quando a coleta liga vários sites ao mesmo CNPJ, fica o do método mais confiável (manual, CNPJ no rodapé, nome × título, e-mail) e, no empate, o de mais texto. Textos de sites diferentes nunca se misturam. Motivo: o domínio do e-mail da Receita muitas vezes é o do contador, e nome × título liga nomes genéricos a vários sites.
+- **Site fora de ensino sai da análise.** O LLM responde também `site_de_ensino`; quando é `false` (contador, advogado, provedor, "em construção"), todos os campos viram "indeterminado" com confiança baixa, e a empresa fica sem embedding, ou seja, fora de concorrentes e lacunas. Empresas que vendem serviços e cursos juntos contam, descritas só pela parte de ensino.
+- **Provedor: OpenAI desde 03/11/2026** (`LLM_PROVEDOR=openai`). Motivo: a chave do Gemini está no plano gratuito, com 15 chamadas por minuto; na primeira rodada, 93 de 204 classificações falharam por isso (429), e o `gemini-3.8-flash` deu 503/504 em 30/10 e 03/11. A chave paga da OpenAI (plano Build) aceita 5.000 chamadas por minuto: as 204 empresas levaram cerca de 2 minutos com 6 workers, por US$ 0,05. O Gemini continua funcionando como reserva: basta `LLM_PROVEDOR=gemini` no `.env`.
+- **Modelos (OpenAI):** classificação `gpt-6-luna`, o modelo de alto volume da OpenAI. Ao vivo: `gpt-6-luna`, depois `gpt-5.6-luna`, depois `gpt-5.4-nano`; 2 tentativas por modelo e no máximo 15 s por chamada. Todos com `reasoning.effort = none` (`OPENAI_ESFORCO`), o mais rápido. Em 03/11/2026, `propor_recorte` levou de 1,8 a 1,9 s e `diferencial.gerar` de 2,2 a 2,4 s, em 3 ideias de teste. O schema estrito da OpenAI exige `additionalProperties: false` e todos os campos em `required`; o `llm.schema_estrito` converte, e o Gemini continua recebendo o schema original. As variáveis `LLM_MODELO_CLASSIFICACAO` e `LLM_MODELOS_AO_VIVO` no `.env` têm prioridade sobre esses padrões.
+- **Modelos (Gemini, reserva):** classificação `gemini-3.5-flash-lite`. Ao vivo: `gemini-3.5-flash-lite`, depois `gemini-3.1-flash-lite`, depois `gemini-3.6-flash`. O `gemini-3.8-flash` ficou de fora: deu 503 (sobrecarga) em 30/10 e 03/11 e 504 (tempo esgotado) em 3 de 3 chamadas em 03/11/2026, enquanto os Flash-Lite responderam em menos de 2 s.
+- **Moderação da OpenAI:** 1 das 204 empresas teve o texto recusado pelo filtro da OpenAI (erro 400). Não vale nova tentativa; a empresa fica com a classificação anterior (do Gemini). A comparação entre os modelos está no `METRICAS.md`.
 - **Embeddings:** `paraphrase-multilingual-MiniLM-L12-v2` (384 dim, bate com o contrato 1). O vetor vem do texto da classificação (nicho, serviço, público, canal).
 - **Concorrentes:** semelhança de cosseno ≥ 0,35 entre o recorte da ideia e cada empresa classificada; os 10 primeiros vão para a tela.
 - **Lacunas:** a combinação da ideia (público × serviço × canal) e seus pares. Uma empresa "atende" público ou serviço quando a semelhança do texto dela com o da ideia é ≥ 0,45; canal compara a lista fechada (híbrido atende presencial e online). Quem tem o campo "indeterminado" fica fora da conta daquela combinação. Só empresas ativas contam. Abaixo de 50 ativas analisadas: "dados insuficientes" (regra do Lucas).
