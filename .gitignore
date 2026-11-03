@@ -10,6 +10,7 @@ dados/parquet/
 *.duckdb.wal
 *.csv
 !contratos/exemplos/*.csv
+!dados/sql/seeds/*.csv
 
 # --- Cache de coleta e modelos ---
 enriquecimento/cache/

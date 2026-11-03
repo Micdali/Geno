@@ -1,0 +1,64 @@
+codigo_motivo,descricao,classe,justificativa
+00,SEM MOTIVO,outra,Sem motivo informado.
+01,EXTINCAO POR ENCERRAMENTO LIQUIDACAO VOLUNTARIA,voluntaria,"Pedido de encerramento feito pelo titular (liquidação voluntária); 91,5% das baixas."
+02,INCORPORACAO,outra,"Incorporação por outra empresa: reorganização, não fechamento do negócio."
+03,FUSAO,outra,Fusão: reorganização societária (0 casos no recorte).
+04,CISAO TOTAL,outra,Cisão total: reorganização societária.
+05,ENCERRAMENTO DA FALENCIA,outra,"Encerramento de falência: decisão judicial, nem voluntária nem de ofício da Receita."
+06,ENCERRAMENTO DA LIQUIDACAO,outra,"Encerramento da liquidação, sem indicar se voluntária ou judicial; 2 casos, não classificado como voluntária por cautela."
+07,ELEVACAO A MATRIZ,outra,"Elevação a matriz: mudança cadastral, não fechamento."
+08,TRANSPASSE,outra,Transpasse: o negócio continua com outro titular.
+09,NAO INICIO DE ATIVIDADE,oficio,"Não início de atividade, constatado e baixado pela Receita."
+10,EXTINCAO PELO ENCERRAMENTO DA LIQUIDACAO JUDICIAL,outra,Encerramento de liquidação judicial: decisão judicial.
+11,ANULACAO POR MULTICIPLIDADE,oficio,"Anulação por multiplicidade de inscrição: ato administrativo; ato administrativo, sem caso no recorte."
+12,ANULACAO ONLINE DE OFICIO,oficio,"Anulação online de ofício; ato administrativo, sem caso no recorte."
+13,OMISSA CONTUMAZ,oficio,"Omissão contumaz; ato administrativo, sem caso no recorte."
+14,OMISSA NAO LOCALIZADA,oficio,"Omissa não localizada; ato administrativo, sem caso no recorte."
+15,INEXISTENCIA DE FATO,oficio,"Inexistência de fato, constatada pela Receita."
+16,ANULACAO POR VICIOS,oficio,"Anulação por vícios; ato administrativo, sem caso no recorte."
+17,BAIXA INICIADA EM ANALISE,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+18,INTERRUPCAO TEMPORARIA DAS ATIVIDADES,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+21,PEDIDO DE BAIXA INDEFERIDA,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+24,POR EMISSAO CERTIDAO NEGATIVA,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+28,TRANSFERENCIA FILIAL CONDICAO MATRIZ,outra,"Filial passa a matriz: mudança cadastral, não fechamento."
+31,EXTINCAO-UNIFICACAO DA FILIAL,outra,Unificação de filial: reorganização cadastral.
+33,TRANSFERENCIA DO ORGAO LOCAL A CONDICAO DE FILIAL DO ORGAO REGIONAL,outra,Mudança de condição do órgão local para filial: reorganização cadastral.
+34,ANULACAO DE INSCRICAO INDEVIDA,oficio,"Anulação de inscrição indevida; ato administrativo, sem caso no recorte."
+35,EMPRESA ESTRANGEIRA AGUARDANDO DOCUMENTACAO,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+36,PRATICA IRREGULAR DE OPERACAO DE COMERCIO EXTERIOR,oficio,"Prática irregular de comércio exterior; ato administrativo, sem caso no recorte."
+37,BAIXA DE PRODUTOR RURAL,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+38,BAIXA DEFERIDA PELA RFB AGUARDANDO ANALISE DO CONVENENTE,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+39,BAIXA DEFERIDA PELA RFB E INDEFERIDA PELO CONVENENTE,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+40,BAIXA INDEFERIDA PELA RFB E AGUARDANDO ANALISE DO CONVENENTE,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+41,BAIXA INDEFERIDA PELA RFB E DEFERIDA PELO CONVENENTE,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+42,"BAIXA DEFERIDA PELA RFB E SEFIN, AGUARDANDO ANALISE SEFAZ",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+43,"BAIXA DEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFAZ E INDEFERIDA PELA SEFIN",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+44,"BAIXA DEFERIDA PELA RFB E SEFAZ, AGUARDANDO ANALISE SEFIN",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+45,"BAIXA DEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFIN E INDEFERIDA PELA SEFAZ",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+46,BAIXA DEFERIDA PELA RFB E SEFAZ E INDEFERIDA PELA SEFIN,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+47,BAIXA DEFERIDA PELA RFB E SEFIN E INDEFERIDA PELA SEFAZ,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+48,"BAIXA INDEFERIDA PELA RFB, AGARDANDO ANALISE SEFAZ E DEFERIDA PELA SEFIN",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+49,"BAIXA INDEFERIDA PELA RFB, AGUARDANDO ANALISE DA SEFAZ E INDEFERIDA PELA SEFIN",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+50,"BAIXA INDEFERIDA PELA RFB, DEFERIDA PELA SEFAZ E AGUARDANDO ANALISE DA SEFIN",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+51,"BAIXA INDEFERIDA PELA RFB E SEFAZ, AGUARDANDO ANALISE DA SEFIN",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+52,"BAIXA INDEFERIDA PELA RFB, DEFERIDA PELA SEFAZ E INDEFERIDA PELA SEFIN",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+53,BAIXA INDEFERIDA PELA RFB E SEFAZ E DEFERIDA PELA SEFIN,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+54,EXTINCAO - TRATAMENTO DIFERENCIADO DADO AS ME E EPP (LEI COMPLEMENTAR NUMERO 123/2006),voluntaria,Extinção simplificada a pedido de ME/EPP (LC 123/2006); decisão do titular.
+55,"DEFERIDO PELO CONVENENTE, AGUARDANDO ANALISE DA RFB",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+60,"ARTIGO 30, VI, DA IN 748/2007",oficio,"Artigo 30, VI, da IN 748/2007 (ato da Receita); ato administrativo, sem caso no recorte."
+61,INDICIO INTERPOS. FRAUDULENTA,oficio,"Indício de interposição fraudulenta; ato administrativo, sem caso no recorte."
+62,FALTA DE PLURALIDADE DE SOCIOS,oficio,"Falta de pluralidade de sócios (ato da Receita); ato administrativo, sem caso no recorte."
+63,OMISSAO DE DECLARACOES,oficio,"Omissão de declarações; ato administrativo, sem caso no recorte."
+64,LOCALIZACAO DESCONHECIDA,oficio,"Localização desconhecida; ato administrativo, sem caso no recorte."
+66,INAPTIDAO,oficio,"Inaptidão declarada pela Receita, sem pedido do titular."
+67,REGISTRO CANCELADO,oficio,"Registro cancelado pela Receita; 99,2% dos casos caem em 01/02/2018 (6.971 de 7.030): cancelamento em massa."
+70,ANULACAO POR NAO CONFIRMADO ATO DE REGISTRO DO MEI NA JUNTA COMERCIAL,oficio,"Anulação por não confirmação do registro do MEI; ato administrativo, sem caso no recorte."
+71,INAPTIDAO (LEI 11.941/2009 ART.54),oficio,"Inaptidão por omissão de declarações (Lei 11.941, art. 54); todos os 962 casos em 31/12/2008: baixa em massa."
+72,DETERMINACAO JUDICIAL,oficio,"Determinação judicial: não é escolha do titular; ato administrativo, sem caso no recorte."
+73,COOMISSAO CONTUMAZ,oficio,Omissão contumaz declarada pela Receita; 521 de 521 casos em 09/02/2015: baixa em massa.
+74,INCONSISTENCIA CADASTRAL,oficio,"Inconsistência cadastral; ato administrativo, sem caso no recorte."
+75,OBITO DO MEI - TITULAR FALECIDO,outra,"Óbito do titular do MEI: o negócio acaba, mas não por escolha nem por ação da Receita."
+80,"BAIXA REGISTRADA NA JUNTA, INDEFERIDA NA RFB",outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
+81,SOLICITACAO DA ADMINISTRACAO TRIBUTARIA ESTADUAL/MUNICIPAL,oficio,"Solicitação da administração tributária estadual/municipal; ato administrativo, sem caso no recorte."
+82,SUSPENSO PERANTE A COMISSAO DE VALORES MOBILIARIOS - CVM,oficio,"Suspenso perante a CVM; ato administrativo, sem caso no recorte."
+93,CNPJ - TITULAR BAIXADO,outra,Sem caso no recorte; etapa de fluxo ou situação que não indica fechamento voluntário nem ato da Receita.
