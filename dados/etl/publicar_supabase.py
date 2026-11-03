@@ -60,8 +60,11 @@ def main(argv: list[str] | None = None) -> int:
         print("ERRO: defina SUPABASE_DB_URL com a connection string do Supabase (Session pooler).", file=sys.stderr)
         return 1
 
-    con = duckdb.connect(str(db), read_only=True)
+    # sessão em memória: o banco local entra só para leitura e o Supabase para escrita
+    # (abrir o .duckdb com read_only=True faria o Postgres herdar a transação somente leitura)
+    con = duckdb.connect()
     con.execute("INSTALL postgres; LOAD postgres;")
+    con.execute(f"ATTACH '{db.as_posix()}' AS loc (READ_ONLY)")
     con.execute("ATTACH ? AS pg (TYPE postgres)", [url])
     # o Postgres não aceita dois comandos numa chamada preparada: um postgres_execute por comando
     con.execute(f"CALL postgres_execute('pg', 'DROP SCHEMA IF EXISTS {SCHEMA_PG} CASCADE')")
@@ -69,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     falhas = []
     for t in objetos:
         try:
-            con.execute(f'CREATE TABLE pg.{SCHEMA_PG}."{t}" AS SELECT * FROM main."{t}"')
+            con.execute(f'CREATE TABLE pg.{SCHEMA_PG}."{t}" AS SELECT * FROM loc.main."{t}"')
             con.execute(f"CALL postgres_execute('pg', 'ALTER TABLE {SCHEMA_PG}.\"{t}\" ENABLE ROW LEVEL SECURITY')")
             n = con.execute(f'SELECT count(*) FROM pg.{SCHEMA_PG}."{t}"').fetchone()[0]
             marca = "OK " if n == contagens[t] else "DIVERGE"
