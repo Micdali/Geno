@@ -29,12 +29,15 @@ python -m dados.etl.recriar
 
 | Etapa | Tempo estimado |
 |---|---|
+| Criar o venv e instalar as dependências | ≈ 2 min (medido) |
 | Download dos ZIPs (≈ 7,1 GB, ≈ 5 MB/s) | ≈ 20 min |
 | Filtro: Estabelecimentos, Empresas, Simples e domínios (por ZIP, um de cada vez) | ≈ 25 min |
 | `candidatos.parquet` | segundos |
-| `geno.duckdb`, views e métricas | ≈ 1 min |
+| `geno.duckdb`, views e métricas | ≈ 20 s (16 s medidos) |
 
 Conferir o resultado: `python -m pytest tests -v`.
+
+> Verificado em 03/11/2026 num clone limpo, com venv novo e só o `requirements-dados.txt`: `recriar --sem-download` (reaproveitando os Parquet) refez o `candidatos.parquet`, o banco e as métricas, e os 32 testes passaram. O `METRICAS.md` e o `metricas.json` saíram idênticos aos originais (só mudam a data de geração e o hash do commit). O download completo da Receita não foi refeito nessa verificação; ele roda pelo mesmo `filtrar --baixar` já exercitado na carga original.
 
 ## Etapa por etapa (se quiser rodar separado)
 
