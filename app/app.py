@@ -165,7 +165,8 @@ def confirmar(editado: dict, respostas: dict):
     r = r | {"atributos": r["atributos"] | mudou}
     if mudou or not r.get("descricao"):
         at = r["atributos"]
-        r["descricao"] = " · ".join(x for x in (at["produto_servico"], at["publico"], CANAIS[at["canal"]]) if x)
+        canal = "" if at["canal"] == "indeterminado" else CANAIS[at["canal"]]
+        r["descricao"] = " · ".join(x for x in (at["produto_servico"], at["publico"], canal) if x)
     s.recorte, s.resultado, s.erro = r, None, None
     s.pop("tarefa", None)  # análise de um recorte antigo, se a pessoa saiu da tela 3 no meio
     ir(3)
@@ -248,13 +249,14 @@ def tela_4():
         "Situação": [SITUACAO.get(c["situacao"], c["situacao"]) + (f" em {c['ano_baixa']}" if c.get("ano_baixa") else "")
                      for c in cs],
         "Semelhança": [c["semelhanca"] for c in cs],
-        "Site": [c.get("site") for c in cs],
+        # o motor manda o domínio sem esquema (ex.: "escola.com.br"); sem https:// o link vira relativo
+        "Site": [s if not s or "://" in s else f"https://{s}" for s in (c.get("site") for c in cs)],
     })
     if not df["Site"].any():
         df = df.drop(columns="Site")
     st.dataframe(df, hide_index=True, width="stretch", column_config={
         "Semelhança": st.column_config.ProgressColumn(min_value=0, max_value=1, format="%.2f"),
-        "Site": st.column_config.LinkColumn()})
+        "Site": st.column_config.LinkColumn(display_text=r"https?://(.*)")})
     st.caption(f"{T.BAIXA_CNPJ_CURTO}. {T.SEM_SITE_AVISO}")
     d = s.resultado.get("diferencial") or {}
     partes = [(t, d.get(k)) for t, k in (("Em comum com eles", "em_comum"),
