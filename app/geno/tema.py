@@ -115,6 +115,60 @@ h1 {{ font-size: 2.6rem !important; }}
 """
 
 
+# Página inicial: floresta à noite (fundo escuro com brilho no centro e um campo de pontos, um por empresa).
+# Só a tela 1 usa; as outras continuam claras.
+_CSS_HOME = f"""
+<style>
+.stApp {{
+    background-color: #0F3D33;
+    background-image: radial-gradient(circle at 50% 38%, rgba(31,111,92,.95) 0, rgba(15,61,51,0) 62%),
+                      radial-gradient(rgba(250,243,231,.16) 1.2px, transparent 1.5px);
+    background-size: 100% 100%, 18px 18px;
+    background-attachment: fixed;
+}}
+header[data-testid="stHeader"] {{ background: transparent; }}
+.stMainBlockContainer {{ max-width: 760px; padding-top: 14vh; padding-bottom: 6rem; }}
+.geno-home-logo {{ display: flex; justify-content: center; margin-bottom: 1.6rem; }}
+.geno-home-logo svg {{ width: 220px; height: auto; }}
+.stApp h1 {{
+    color: {CORES["creme"]} !important; text-align: center; font-weight: 700 !important;
+    font-size: clamp(2.1rem, 5.2vw, 3.3rem) !important; line-height: 1.1; letter-spacing: -0.02em;
+    margin-bottom: 2.2rem;
+}}
+.st-key-caixa {{
+    background: {CORES["creme"]}; border-radius: 26px; padding: .7rem .7rem .7rem 1.2rem;
+    box-shadow: 0 24px 60px rgba(4,20,16,.45);
+}}
+.st-key-caixa [data-testid="stTextArea"] * {{ background: transparent !important; border-color: transparent !important; }}
+.st-key-caixa textarea {{ resize: none; }}
+.st-key-caixa [data-testid="InputInstructions"] {{ display: none; }}  /* "Press Ctrl+Enter to apply", em inglês */
+.st-key-caixa textarea {{
+    border: none !important; background: transparent !important; box-shadow: none !important;
+    font-size: 1.15rem; font-weight: 600; color: {CORES["tinta"]}; padding-left: 0;
+}}
+.st-key-caixa textarea::placeholder {{ color: rgba(23,38,31,.5); font-weight: 500; }}
+.st-key-caixa .stButton button[kind="primary"] {{
+    background: {CORES["coral"]}; color: #fff; height: 3rem; white-space: nowrap; padding: 0 1.1rem;
+}}
+.st-key-caixa .stButton button[kind="primary"]:hover {{ background: #CF4F2B; }}
+.st-key-caixa .stButton button:focus-visible {{ outline: 2px solid {CORES["coral"]}; outline-offset: 3px; }}
+.stApp [data-testid="stSpinner"], .stApp [data-testid="stSpinner"] p {{ color: {CORES["creme"]}; }}
+</style>
+"""
+
+
+def aplicar_tema_home() -> None:
+    """Fundo escuro e caixa da ideia em destaque. Chamar só na tela 1, depois de aplicar_tema()."""
+    st.markdown(_CSS_HOME, unsafe_allow_html=True)
+
+
+def logo_claro() -> None:
+    """Logotipo em cores claras, para o fundo escuro da página inicial (mesmo desenho do logo.svg)."""
+    svg = (Path(__file__).parent / "logo.svg").read_text(encoding="utf-8")
+    svg = svg.replace('stroke="#1F6F5C"', 'stroke="#8FD3BD"').replace('fill="#17261F"', f'fill="{CORES["creme"]}"')
+    st.markdown(f'<div class="geno-home-logo">{svg}</div>', unsafe_allow_html=True)
+
+
 def aplicar_tema() -> None:
     """Injeta fontes e CSS da marca. Chamar uma vez por execução do app."""
     st.markdown(_CSS, unsafe_allow_html=True)

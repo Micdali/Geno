@@ -25,8 +25,8 @@ class T:
         "deram baixa e o que ninguém está atendendo."
     )
     CAMPO_IDEIA_LABEL = "Qual é a sua ideia?"
-    CAMPO_IDEIA_PLACEHOLDER = "Ex.: um café que também vende plantas"
-    BOTAO_ANALISAR = "Analisar minha ideia"
+    CAMPO_IDEIA_PLACEHOLDER = "Descreva sua ideia. Ex.: escola de inglês online para adultos"
+    BOTAO_ANALISAR = "Analisar ideia"
     SEM_CADASTRO = "Sem cadastro. A primeira análise é grátis."
 
     # ------------------------------------------------------------------

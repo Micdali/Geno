@@ -112,3 +112,12 @@ def test_app_pede_para_aquecer_o_modelo_ao_abrir(monkeypatch):
     monkeypatch.setitem(sys.modules, "motor.nicho", None)
     AppTest.from_file(APP, default_timeout=30).run()
     assert chamadas == [1]
+
+
+def test_pagina_inicial_so_tem_logo_slogan_e_caixa(app):
+    assert [b.label for b in app.button] == [T.BOTAO_ANALISAR]  # sem a linha do tempo
+    assert app.title[0].value == T.TITULO and len(app.text_area) == 1
+    assert not any(T.RODAPE in m.value for m in app.markdown)
+    app.text_area[0].input("Escola de inglês online para adultos 40+").run()
+    clicar(app, T.BOTAO_ANALISAR)
+    assert app.session_state.tela == 2 and any(b.label == "Nicho" for b in app.button)  # a linha volta na tela 2

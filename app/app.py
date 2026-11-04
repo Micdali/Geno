@@ -24,7 +24,8 @@ APP = Path(__file__).resolve().parent
 RAIZ = APP.parent
 sys.path[:0] = [str(RAIZ), str(APP)]  # motor/ está na raiz; geno/ (tema e textos) em app/
 
-from geno.tema import CORES, aplicar_tema, caixa_confianca, card_lacuna  # noqa: E402
+from geno.tema import (CORES, aplicar_tema, aplicar_tema_home, caixa_confianca, card_lacuna,  # noqa: E402
+                       logo_claro)
 from geno.textos import T  # noqa: E402
 from motor import embeddings  # noqa: E402
 from motor.analisar import analisar  # noqa: E402
@@ -156,11 +157,16 @@ def limite():
 
 # --- telas ---------------------------------------------------------------------------------------
 def tela_1():
+    # Página inicial: só logo, slogan e a caixa da ideia, centralizados sobre o fundo escuro
+    aplicar_tema_home()
+    logo_claro()
     st.title(T.TITULO)
-    st.write(T.SUBTITULO)
-    ideia = st.text_area(T.CAMPO_IDEIA_LABEL, s.ideia, height=140, placeholder=T.CAMPO_IDEIA_PLACEHOLDER)
-    st.caption(f"{T.SEM_CADASTRO} {T.AVISO_PILOTO}")
-    if st.button(T.BOTAO_ANALISAR, type="primary"):
+    with st.container(key="caixa"):
+        c1, c2 = st.columns([3, 1.3], vertical_alignment="bottom")
+        ideia = c1.text_area(T.CAMPO_IDEIA_LABEL, s.ideia, height=76, placeholder=T.CAMPO_IDEIA_PLACEHOLDER,
+                             label_visibility="collapsed")
+        analisar_clicado = c2.button(T.BOTAO_ANALISAR, type="primary", width="stretch")
+    if analisar_clicado:
         if not ideia.strip():
             st.error(T.ERRO_IDEIA_VAZIA)
             return
@@ -404,7 +410,8 @@ def tela_6():
 
 if (s.tela >= 4 and not s.resultado) or (s.tela in (2, 3) and not s.recorte):
     s.tela = 1
-linha_do_tempo()
+if s.tela > 1:  # a página inicial não mostra o progresso
+    linha_do_tempo()
 [tela_1, tela_2, tela_3, tela_4, tela_5, tela_6][s.tela - 1]()
-if s.tela <= 3:  # nas telas de resultado o limite() já diz o mesmo
+if s.tela in (2, 3):  # nas telas de resultado o limite() já diz o mesmo; a inicial fica limpa
     st.markdown(f'<div class="geno-limite">{T.RODAPE}</div>', unsafe_allow_html=True)
