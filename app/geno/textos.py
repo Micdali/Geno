@@ -143,10 +143,10 @@ class T:
 
     SATURACAO_TITULO = "Quantos abriram e quantos deram baixa"
     SATURACAO_FRASE_FECHARAM_MAIS = (
-        "Nos últimos {anos} anos, mais empresas deram baixa do que abriram neste recorte."
+        "Nos últimos {anos} anos, mais empresas deram baixa do que abriram neste setor."
     )
     SATURACAO_FRASE_ABRIRAM_MAIS = (
-        "Nos últimos {anos} anos, mais empresas abriram do que deram baixa neste recorte."
+        "Nos últimos {anos} anos, mais empresas abriram do que deram baixa neste setor."
     )
     SATURACAO_FONTE = "Fonte: base de CNPJ da Receita Federal, atualizada em {data}."
 

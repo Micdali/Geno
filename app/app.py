@@ -26,6 +26,7 @@ sys.path[:0] = [str(RAIZ), str(APP)]  # motor/ está na raiz; geno/ (tema e text
 
 from geno.tema import CORES, aplicar_tema, caixa_confianca, card_lacuna  # noqa: E402
 from geno.textos import T  # noqa: E402
+from motor import embeddings  # noqa: E402
 from motor.analisar import analisar  # noqa: E402
 
 try:
@@ -44,6 +45,17 @@ MARCA = {True: "✅", False: "❌", None: "❔"}
 NAO_SEI = "Não sei ainda"
 
 st.set_page_config(page_title="Geno", page_icon=str(LOGO), layout="wide")
+
+
+@st.cache_resource
+def aquecer_motor() -> bool:
+    """Começa a carregar o modelo de embedding assim que o app abre (15 a 30 s na primeira vez), em segundo
+    plano: quando a pessoa chega à tela 3, ele já está pronto. Roda uma vez por processo."""
+    getattr(embeddings, "aquecer", lambda: None)()  # motor sem aquecer(): carrega na primeira análise
+    return True
+
+
+aquecer_motor()
 aplicar_tema()
 # Linha do tempo no topo: as etapas são st.button (clicáveis e acessíveis por teclado) desenhadas
 # como bolinhas; a barra verde anima da etapa anterior até a atual (ver linha_do_tempo).
@@ -194,11 +206,12 @@ def tela_2():
             if escolha and escolha != NAO_SEI:
                 respostas[p["pergunta"]] = escolha
 
+    # "Analisar assim mesmo" é para pular as perguntas: sem perguntas, fica só o botão principal
     c1, c2 = st.columns(2)
     if c1.button(T.BOTAO_CONFIRMAR_RECORTE, type="primary", width="stretch"):
         confirmar(editado, respostas)
-    if c2.button(T.BOTAO_ANALISAR_ASSIM_MESMO, width="stretch",
-                 help="Analisa com o recorte de cima, sem responder às perguntas."):
+    if r.get("perguntas") and c2.button(T.BOTAO_ANALISAR_ASSIM_MESMO, width="stretch",
+                                        help="Analisa com o recorte de cima, sem responder às perguntas."):
         confirmar(editado, {})
 
 
