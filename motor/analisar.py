@@ -12,6 +12,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from . import classificar, confianca, config, diferencial, embeddings, lacunas, nicho
@@ -102,6 +103,19 @@ def _concorrentes(ranking: list[tuple[str, float]], classif: pd.DataFrame, publi
     return saida
 
 
+def _vetorizar_com_memoria(textos_iniciais: list[str]):
+    """Vetoriza `textos_iniciais` agora e devolve um vetorizar que reaproveita esses vetores."""
+    memoria = dict(zip(textos_iniciais, embeddings.vetorizar(textos_iniciais)))
+
+    def vetorizar(textos: list[str]) -> np.ndarray:
+        faltam = list(dict.fromkeys(t for t in textos if t not in memoria))
+        if faltam:
+            memoria.update(zip(faltam, embeddings.vetorizar(faltam)))
+        return np.stack([memoria[t] for t in textos]) if textos else np.zeros((0, 384), dtype=np.float32)
+
+    return vetorizar
+
+
 def analisar(ideia: str, recorte: dict | None = None) -> dict:
     """Analisa o mercado de uma ideia descrita em texto livre.
 
@@ -121,7 +135,11 @@ def analisar(ideia: str, recorte: dict | None = None) -> dict:
 
     classif = classificar.carregar()
     cnpjs, matriz = embeddings.carregar()
-    vetor, vetor_servico = embeddings.vetorizar([_texto_recorte(recorte), recorte["atributos"]["produto_servico"]])
+    # Todos os textos da ideia numa chamada só, antes de abrir o banco: no app (Streamlit), vetorizar
+    # depois das consultas ao DuckDB chegou a levar 6 s para 2 textos (04/11/2026).
+    vetorizar = _vetorizar_com_memoria([_texto_recorte(recorte), recorte["atributos"]["produto_servico"],
+                                        recorte["atributos"]["publico"]])
+    vetor, vetor_servico = vetorizar([_texto_recorte(recorte), recorte["atributos"]["produto_servico"]])
     ranking = lacunas.ranquear(vetor, cnpjs, matriz)
     ranking = lacunas.filtrar_por_servico(vetor_servico, ranking, embeddings.carregar_servico())
     ranking = [(c, s) for c, s in ranking if c in set(classif["cnpj"])]
@@ -132,7 +150,12 @@ def analisar(ideia: str, recorte: dict | None = None) -> dict:
     ativos = set(publicos.loc[publicos["situacao"] == "02", "cnpj"])
 
     parecidas = classif.set_index("cnpj").loc[[c for c, _ in ranking]].reset_index().to_dict("records")
-    marcas = lacunas.marcar_atendimento(recorte, parecidas, embeddings.vetorizar)
+    try:
+        vetores_publico = embeddings.carregar_atributo("publico")
+    except RuntimeError:  # parquet de antes de 04/11/2026: o público é vetorizado na hora
+        vetores_publico = {}
+    marcas = lacunas.marcar_atendimento(recorte, parecidas, vetorizar, vetores={
+        "publico": vetores_publico, "produto_servico": embeddings.carregar_servico()})
     lista_lacunas, aviso = lacunas.calcular(recorte, marcas, ativos)
     concorrentes = _concorrentes(ranking, classif, publicos)
 

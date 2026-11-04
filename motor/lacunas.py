@@ -46,20 +46,31 @@ def atende_canal(canal_ideia: str, canal_empresa: str | None) -> bool | None:
     return canal_empresa == "hibrido" and canal_ideia in ("presencial", "online")
 
 
-def marcar_atendimento(recorte: dict, empresas: list[dict], vetorizar) -> dict[str, dict]:
+def marcar_atendimento(recorte: dict, empresas: list[dict], vetorizar,
+                       vetores: dict[str, dict[str, np.ndarray]] | None = None) -> dict[str, dict]:
     """Para cada empresa, se atende cada atributo da ideia: True, False ou None (site não diz).
 
     Público e serviço são texto livre: comparados por similaridade de embeddings (>= ATENDE_MIN).
+    `vetores` ({"publico": {cnpj: vetor}, "produto_servico": {...}}, do embedding.parquet) evita
+    vetorizar os textos das empresas ao vivo; quem não estiver lá é vetorizado na hora.
     """
     attrs = recorte["atributos"]
-    textos = [attrs["publico"], attrs["produto_servico"]]
-    textos += [e.get("publico_atendido") or "" for e in empresas]
-    textos += [e.get("produto_servico") or "" for e in empresas]
-    v = vetorizar(textos)
+    vetores = vetores or {}
     n = len(empresas)
+    textos = [attrs["publico"], attrs["produto_servico"]]
+    faltam = []  # (atributo, índice da empresa) a vetorizar agora
+    for a, campo in (("publico", "publico_atendido"), ("produto_servico", "produto_servico")):
+        for i, e in enumerate(empresas):
+            if e["cnpj"] not in vetores.get(a, {}):
+                faltam.append((a, i))
+                textos.append(e.get(campo) or "")
+    v = vetorizar(textos)
     v_pub, v_serv = v[0], v[1]
-    sim_pub = v[2:2 + n] @ v_pub if n else []
-    sim_serv = v[2 + n:2 + 2 * n] @ v_serv if n else []
+    emp = {a: [vetores.get(a, {}).get(e["cnpj"]) for e in empresas] for a in ("publico", "produto_servico")}
+    for k, (a, i) in enumerate(faltam):
+        emp[a][i] = v[2 + k]
+    sim_pub = np.array([x @ v_pub for x in emp["publico"]]) if n else []
+    sim_serv = np.array([x @ v_serv for x in emp["produto_servico"]]) if n else []
     marcas = {}
     for i, e in enumerate(empresas):
         def julgar(campo, sim):

@@ -8,7 +8,7 @@
 """
 from __future__ import annotations
 
-from . import config, llm
+from . import config, embeddings, llm
 
 PROMPT_VERSAO = "v1"
 MAX_PERGUNTAS = 3
@@ -56,9 +56,14 @@ def propor_recorte(ideia: str, respostas: dict[str, str] | None = None, gerar=No
                 "\n".join(f"- {p} {r}" for p, r in respostas.items())
     prompt = (config.PASTA_PROMPTS / f"nicho_{PROMPT_VERSAO}.md").read_text(encoding="utf-8").format(
         max_perguntas=MAX_PERGUNTAS, cnaes=cnaes, ideia=ideia.strip(), respostas=extra)
+    if gerar is None:  # chamada real (tela 1): o modelo de embedding carrega enquanto a pessoa lê a tela 2
+        embeddings.aquecer()
     r, _ = (gerar or llm.gerar_json)(prompt, SCHEMA, config.MODELOS_AO_VIVO,
                                          tentativas=config.TENTATIVAS_AO_VIVO, timeout_s=config.TIMEOUT_AO_VIVO_S)
     r["uf"] = config.UF_PILOTO
+    # "Ensino de música · aulas · crianças · indeterminado": o pedaço "indeterminado" não vai para a tela
+    partes = [p.strip() for p in (r.get("descricao") or "").split("·")]
+    r["descricao"] = " · ".join(p for p in partes if p and p.lower() != "indeterminado")
     r["cnaes"] = [c for c in r.get("cnaes", []) if c in config.CNAES_PILOTO] or list(config.CNAES_PILOTO)
     r["perguntas"] = [] if respostas and len(respostas) >= MAX_PERGUNTAS else r.get("perguntas", [])[:MAX_PERGUNTAS]
     return r
