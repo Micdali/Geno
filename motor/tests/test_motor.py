@@ -169,6 +169,7 @@ def test_embeddings_guarda_vetor_do_servico(tmp_path, monkeypatch):
     embeddings.gerar(classif, destino)
     s = embeddings.carregar_servico(destino)
     assert set(s) == {"1"} and s["1"].shape == (64,)
+    assert set(embeddings.carregar_atributo("publico", destino)) == {"1", "2"}
 
 
 def test_ranquear_ordena_e_corta():
@@ -226,6 +227,18 @@ def test_marcar_atendimento():
     assert m["2"] == {"publico": False, "produto_servico": False, "canal": False}
     assert m["3"]["publico"] is None
 
+    # com os vetores do cache, só os 2 textos da ideia são vetorizados ao vivo, e o resultado é o mesmo
+    vetores = {"publico": {e["cnpj"]: vetorizar_falso([e["publico_atendido"]])[0] for e in empresas},
+               "produto_servico": {e["cnpj"]: vetorizar_falso([e["produto_servico"]])[0] for e in empresas}}
+    chamadas = []
+
+    def vetorizar_contando(textos):
+        chamadas.append(len(textos))
+        return vetorizar_falso(textos)
+
+    assert lacunas.marcar_atendimento(RECORTE, empresas, vetorizar_contando, vetores) == m
+    assert chamadas == [2]
+
 
 # --- confiança --------------------------------------------------------------------------------
 def test_confianca_niveis():
@@ -247,6 +260,7 @@ def test_propor_recorte():
                 "perguntas": [{"pergunta": f"p{i}", "opcoes": ["a", "Não sei ainda"]} for i in range(5)]}, "m"
     r = nicho.propor_recorte("escola de inglês", gerar=gerar)
     assert r["uf"] == "RJ" and r["cnaes"] == ["8593700"] and len(r["perguntas"]) == 3
+    assert r["descricao"] == "x"
     r = nicho.propor_recorte("escola de inglês", respostas={"p0": "a", "p1": "a", "p2": "a"}, gerar=gerar)
     assert r["perguntas"] == []
 
@@ -322,6 +336,7 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
     servicos = dict(zip(cnpjs, vetorizar_falso(classif["produto_servico"].tolist())))
     servicos.pop(cnpjs[2])  # serviço indeterminado: fica fora
     monkeypatch.setattr(embeddings, "carregar_servico", lambda: servicos)
+    monkeypatch.setattr(embeddings, "carregar_atributo", lambda s: {})  # público vetorizado na hora
     monkeypatch.setattr(config, "parametros_lacuna", lambda: PARAMS)
     publicos = pd.DataFrame({"cnpj": cnpjs, "nome_exibicao": [f"Escola {i}" for i in range(n)],
                              "situacao": ["08" if i == 1 else "02" for i in range(n)],
@@ -360,10 +375,12 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
 def test_analisar_sem_nenhum_concorrente(monkeypatch):
     classif = pd.DataFrame([{"cnpj": "1", "prompt_versao": "v3", "fonte": "site", "site": "a.com.br",
                              **classificacao_falsa(produto_servico="pilates")}])
-    monkeypatch.setattr(embeddings, "vetorizar", vetorizar_falso)
+    chamadas = []
+    monkeypatch.setattr(embeddings, "vetorizar", lambda t: chamadas.append(len(t)) or vetorizar_falso(t))
     monkeypatch.setattr(classificar, "carregar", lambda: classif)
     monkeypatch.setattr(embeddings, "carregar", lambda: (["1"], vetorizar_falso(["pilates"])))
     monkeypatch.setattr(embeddings, "carregar_servico", lambda: {"1": vetorizar_falso(["pilates"])[0]})
+    monkeypatch.setattr(embeddings, "carregar_atributo", lambda s: {})
     monkeypatch.setattr(config, "parametros_lacuna", lambda: PARAMS)
     monkeypatch.setattr(mod_analisar, "_publicos", lambda cs: pytest.fail("não devia consultar o banco"))
     monkeypatch.setattr(mod_analisar, "_ativos_setor", lambda cnaes: 4199)
@@ -377,6 +394,7 @@ def test_analisar_sem_nenhum_concorrente(monkeypatch):
     assert r["confianca"]["nivel"] == "baixa" and r["confianca"]["n_com_site_classificado"] == 0
     assert "insuficientes" in r["confianca"]["texto"]
     assert "Não encontramos empresas parecidas" in r["diferencial"]["em_comum"]
+    assert chamadas == [3]  # os 3 textos da ideia, numa chamada só, antes de abrir o banco
     json.dumps(r)
 
 
@@ -405,3 +423,24 @@ def test_texto_do_site_vai_ao_llm_sem_contatos():
     assert "ana.souza" not in p and "98765" not in p and "2233-4455" not in p
     assert "12.345.678" not in p and "123.456.789" not in p
     assert "[e-mail]" in p and "[telefone]" in p and "desde 2010" in p and "22041-001" in p and "1.299,00" in p
+
+
+def test_recorte_sem_indeterminado_na_descricao_e_sem_aquecer_nos_testes(monkeypatch):
+    monkeypatch.setattr(embeddings, "aquecer", lambda: pytest.fail("com gerar falso não carrega o modelo"))
+
+    def gerar(prompt, schema, modelos, **kw):
+        return {"descricao": "Ensino de música · aulas de música · crianças · indeterminado",
+                "atributos": {"publico": "crianças", "produto_servico": "aulas de música", "canal": "indeterminado"},
+                "cnaes": ["8599699"], "perguntas": []}, "m"
+
+    r = nicho.propor_recorte("aulas de música para crianças", gerar=gerar)
+    assert r["descricao"] == "Ensino de música · aulas de música · crianças"
+
+
+def test_propor_recorte_real_aquece_o_modelo(monkeypatch):
+    chamadas = []
+    monkeypatch.setattr(embeddings, "aquecer", lambda: chamadas.append(1))
+    monkeypatch.setattr(nicho.llm, "gerar_json", lambda *a, **kw: (
+        {"descricao": "x", "atributos": RECORTE["atributos"], "cnaes": [], "perguntas": []}, "m"))
+    nicho.propor_recorte("escola de inglês")
+    assert chamadas == [1]

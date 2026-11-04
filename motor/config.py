@@ -49,6 +49,10 @@ TIMEOUT_LOTE_S = 60      # classificação em massa (antes da demo)
 
 # Multilíngue, 384 dimensões (contrato 1: FLOAT[384]); roda local, não gasta cota
 MODELO_EMBEDDING = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# Threads do PyTorch para os embeddings. Dentro do app (Streamlit), o padrão de usar todos os núcleos
+# disputava o processador com a barra de progresso: em 04/11/2026, 70 textos levavam 53 s no app contra
+# 0,25 s fora dele; com 1 thread, a análise inteira no app caiu para 6 s.
+EMBEDDING_THREADS = int(os.getenv("EMBEDDING_THREADS", "1"))
 
 UF_PILOTO = "RJ"
 CNAES_PILOTO = {
