@@ -14,7 +14,8 @@
   "confianca":
       { "nivel": "alta"|"media"|"baixa",
         "n_empresas",                    # estabelecimentos ATIVOS (situação 02) do setor no recorte
-        "n_com_site_classificado",       # empresas do mesmo nicho analisadas (base das lacunas)
+        "n_com_site_classificado",       # empresas do mesmo nicho com site analisado, ativas ou não
+                                         # (as lacunas usam só as ativas: ver n_empresas_analisadas)
         "usou_setor_amplo": bool,        # mortalidade calculada no setor todo, não no nicho
         "texto": frase exibida ao usuário }
   "concorrentes": lista, ordenada por semelhança

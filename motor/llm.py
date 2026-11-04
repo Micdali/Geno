@@ -9,6 +9,7 @@ import time
 from collections import defaultdict
 from functools import lru_cache
 
+import httpx
 import openai
 from google import genai
 from google.genai import errors, types
@@ -65,8 +66,10 @@ def _temporario(e: Exception) -> bool:
         return True  # APIConnectionError inclui APITimeoutError
     if isinstance(e, openai.APIStatusError):
         return e.status_code in (408, 429) or e.status_code >= 500
+    if isinstance(e, httpx.TransportError):  # Gemini: conexão recusada, DNS, leitura interrompida, timeout
+        return True
     codigo = getattr(e, "code", None)
-    return isinstance(e, errors.ServerError) or codigo == 429 or "Timeout" in type(e).__name__
+    return isinstance(e, errors.ServerError) or codigo in (408, 429) or "Timeout" in type(e).__name__
 
 
 def _gerar_gemini(prompt, schema, modelo, sistema, temperatura, timeout_s) -> str:

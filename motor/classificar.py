@@ -9,12 +9,15 @@ Uso:
 - Retomável: rodar de novo pula quem já foi classificado com o mesmo prompt, o mesmo texto e o
   mesmo modelo (trocar de modelo reclassifica tudo).
 - Só texto público de site vai para o LLM, mais a descrição do CNAE (nunca nome, sócio ou contato).
+  E-mails, telefones, CPFs e CNPJs que aparecem no texto do site são trocados por marcadores antes
+  da chamada (`sem_contatos`). Nomes de pessoas no texto não dá para tirar com segurança.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import re
 import sys
 import threading
 import time
@@ -48,6 +51,22 @@ SCHEMA = {
     },
     "required": ["site_de_ensino"] + CAMPOS_TEXTO + ["canal_atendimento", "modelo_receita", "confianca"],
 }
+
+
+# Dados pessoais que o texto público do site pode trazer (página "Sobre", rodapé, "Fale conosco").
+_PADROES_PESSOAIS = [
+    (re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+"), "[e-mail]"),
+    (re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b"), "[cpf]"),
+    (re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b"), "[cnpj]"),
+    (re.compile(r"(\+?55[\s.-]?)?\(?\b\d{2}\)?[\s.-]?9?\d{4}[\s.-]?\d{4}\b"), "[telefone]"),
+]
+
+
+def sem_contatos(texto: str) -> str:
+    """Troca e-mails, CPFs, CNPJs e telefones do texto por marcadores (LGPD)."""
+    for padrao, marcador in _PADROES_PESSOAIS:
+        texto = padrao.sub(marcador, texto)
+    return texto
 
 
 def _prompt_modelo() -> str:
@@ -102,7 +121,7 @@ def ja_classificados(caminho=config.CLASSIFICACAO_JSONL) -> set[tuple[str, str, 
 
 def classificar_um(empresa: dict, cnae: str | None = None, gerar=None) -> dict:
     """Classifica uma empresa. `gerar` é injetável para testes."""
-    prompt = _prompt_modelo().format(cnae=cnae or "não informado", texto=empresa["texto"])
+    prompt = _prompt_modelo().format(cnae=cnae or "não informado", texto=sem_contatos(empresa["texto"]))
     saida, modelo = (gerar or llm.gerar_json)(prompt, SCHEMA, [config.MODELO_CLASSIFICACAO], temperatura=0.0,
                                                    timeout_s=config.TIMEOUT_LOTE_S)
     for c in CAMPOS_TEXTO:

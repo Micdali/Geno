@@ -25,7 +25,7 @@ CLASSIFICACAO_JSONL = CACHE / "classificacao.jsonl"  # uma linha por chamada, re
 EMBEDDING_PARQUET = CACHE / "embedding.parquet"
 
 # "openai" (chave paga, desde 03/11/2026) ou "gemini" (reserva; plano gratuito, 15 chamadas por minuto)
-LLM_PROVEDOR = os.getenv("LLM_PROVEDOR", "gemini").strip().lower()
+LLM_PROVEDOR = (os.getenv("LLM_PROVEDOR") or "openai").strip().lower()
 # Padrões por provedor; LLM_MODELO_CLASSIFICACAO e LLM_MODELOS_AO_VIVO no .env têm prioridade.
 _PADROES = {
     # gpt-6-luna: o modelo de alto volume da OpenAI ($0,10/$0,50 por 1M tokens em 03/11/2026).

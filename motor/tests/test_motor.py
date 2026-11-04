@@ -378,3 +378,30 @@ def test_analisar_sem_nenhum_concorrente(monkeypatch):
     assert "insuficientes" in r["confianca"]["texto"]
     assert "Não encontramos empresas parecidas" in r["diferencial"]["em_comum"]
     json.dumps(r)
+
+
+def test_erro_temporario_do_gemini():
+    req = httpx.Request("POST", "https://generativelanguage.googleapis.com")
+    assert llm._temporario(httpx.ConnectError("recusada", request=req))
+    assert llm._temporario(httpx.ReadTimeout("lento", request=req))
+    assert llm._temporario(llm.errors.ServerError(503, {"error": {"message": "x"}}))
+    assert llm._temporario(llm.errors.ClientError(429, {"error": {"message": "cota"}}))
+    assert llm._temporario(llm.errors.ClientError(408, {"error": {"message": "tempo"}}))
+    assert not llm._temporario(llm.errors.ClientError(400, {"error": {"message": "schema"}}))
+
+
+def test_texto_do_site_vai_ao_llm_sem_contatos():
+    prompts = []
+
+    def gerar(prompt, schema, modelos, **kw):
+        prompts.append(prompt)
+        return classificacao_falsa(), "m"
+
+    texto = ("Escola de inglês desde 2010. Fale com ana.souza@gmail.com, (21) 98765-4321 ou +55 21 2233-4455. "
+             "CNPJ 12.345.678/0001-90. CPF 123.456.789-09. CEP 22041-001, R$ 1.299,00.")
+    empresa = {"cnpj": "1", "fonte": "site", "texto": texto, "hash_texto": "h", "site": "e.com.br"}
+    classificar.classificar_um(empresa, gerar=gerar)
+    p = prompts[0]
+    assert "ana.souza" not in p and "98765" not in p and "2233-4455" not in p
+    assert "12.345.678" not in p and "123.456.789" not in p
+    assert "[e-mail]" in p and "[telefone]" in p and "desde 2010" in p and "22041-001" in p and "1.299,00" in p

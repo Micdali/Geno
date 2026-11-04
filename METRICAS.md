@@ -54,7 +54,7 @@ Números reais medidos durante o desenvolvimento. É daqui que o artigo tira os 
 | CNPJ no rodapé | 16 de 19 (84,2%) | 16 de 19 (84,2%) | 03/11/2026 |
 | Total | 94 de 204 (46,1%) | 104 de 203 (51,2%) | 03/11/2026 |
 | Lotes 2 e 3 do Roger, todos os métodos (`gpt-6-luna`) | — | 504 de 745 (67,7%): e-mail 378 de 564, nome × título 89 de 125, rodapé 37 de 56 | 04/11/2026 |
-| Acumulado dos 3 lotes (`gpt-6-luna`) | — | 609 de 949 (64,2%) | 04/11/2026 |
+| Acumulado dos 3 lotes | — | 609 de 949 (64,2%): 608 pelo `gpt-6-luna` e 1 pelo `gemini-3.5-flash-lite` (a empresa que a moderação da OpenAI recusou) | 04/11/2026 |
 
 Lotes 2 e 3 (04/11/2026): 504 + 242 CNPJs entregues, 745 com texto útil, nenhum CNPJ repetido entre os 3 lotes e nenhum com mais de um site. O Roger mede 89% e 90% de homes com palavra de ensino; o LLM aceita 68% como site de ensino. Das 609 escolas, 602 têm embedding (7 ficaram com todos os campos "indeterminado").
 
@@ -64,7 +64,7 @@ Lotes 2 e 3 (04/11/2026): 504 + 242 CNPJs entregues, 745 com texto útil, nenhum
 | Escolas do mesmo nicho por ideia (serviço ≥ 0,60), de 602 com embedding | inglês online 71, liderança 66, concurso de TI 61, espanhol 30, programação 12, informática p/ idosos 10, Excel 6, música p/ crianças 5 | 04/11/2026, `gpt-6-luna` + `paraphrase-multilingual-MiniLM-L12-v2`; uma chamada de `propor_recorte` por ideia (o recorte muda um pouco a cada chamada) |
 | Escolas que passavam do corte antigo (texto ≥ 0,35) | 207 a 566 de 602 (34% a 94%) | mesmas ideias e data |
 | Concordância com o `gabarito_100_rj.csv` do Roger (não é precisão) | serviço com semelhança ≥ 0,60 em 27 de 72; canal igual em 27 de 57 onde o LLM decidiu; receita igual em 10 de 15 onde o LLM decidiu; o LLM julgou 27 das 99 fora de ensino | 04/11/2026. O arquivo é um rascunho automático por CNAE (20 empresas por CNAE, mesmo texto em todas as 20; receita sempre preenchida, mesmo quando o site não diz). Ex.: marca "aulas de dança" numa empresa de cursos sobre autismo. Por isso **não serve para medir precisão** até alguém conferir as 100 à mão. |
-| Escolas classificadas que estão no `geno.duckdb` | 602 de 602; 553 ativas (situação 02), 39 baixadas | `geno.duckdb` do Lucas recebido em 04/11/2026 |
+| Escolas classificadas que estão no `geno.duckdb` | 602 de 602: 553 ativas (situação 02), 39 baixadas, 8 inaptas, 1 suspensa, 1 nula | `geno.duckdb` do Lucas recebido em 04/11/2026 |
 | Tempo de `analisar()` por ideia | 3,3 a 4,7 s (+ ~2 s do `propor_recorte`) | 04/11/2026, 8 ideias, modelo de embedding já carregado |
 
 ## Custo
