@@ -33,16 +33,43 @@ Números reais medidos durante o desenvolvimento. É daqui que o artigo tira os 
 
 ## Classificação por LLM — Micael
 
-| Campo | Precisão vs. gabarito (100 empresas) | % indeterminado |
-|---|---|---|
-| | | |
+| Campo | Precisão vs. gabarito (100 empresas) | % indeterminado, `gemini-3.5-flash-lite` | % indeterminado, `gpt-6-luna` |
+|---|---|---|---|
+| publico_atendido | | 8,5% (8 de 94) | 6,7% (7 de 104) |
+| produto_servico | | 0,0% (0 de 94) | 3,8% (4 de 104) |
+| problema_resolvido | | 5,3% (5 de 94) | 10,6% (11 de 104) |
+| posicionamento | | 19,1% (18 de 94) | 10,6% (11 de 104) |
+| descricao_nicho | | 1,1% (1 de 94) | 5,8% (6 de 104) |
+| canal_atendimento | | 19,1% (18 de 94) | 40,4% (42 de 104) |
+| modelo_receita | | 72,3% (68 de 94) | 92,3% (96 de 104) |
+
+% indeterminado: 03/11/2026, prompt `classificacao_v3`, `gemini-3.5-flash-lite`, temperatura 0, sobre as 94 empresas que o LLM julgou site de ensino. Entrada: `docs/textos_sites_rj.csv` do Roger (03/11/2026), 425 páginas → 204 CNPJs com texto útil, um site por CNPJ (`motor.classificar.textos_por_empresa`). A precisão ainda depende do gabarito humano.
+
+`gpt-6-luna`: 03/11/2026, mesmo prompt `classificacao_v3`, temperatura 0, `reasoning.effort = none`, mesma entrada, sobre as 104 empresas que ele julgou site de ensino. Foram 203 das 204 empresas: uma foi recusada pelo filtro de moderação da OpenAI (erro 400, "prompt flagged") e continua com a classificação do Gemini. Nas 203 em comum, os dois modelos concordam em `site_de_ensino` em 190 (93,6%); o `gpt-6-luna` aceita 12 que o Gemini recusou (treinamentos corporativos, mentoria, segurança do trabalho) e recusa 1 que o Gemini aceitou. Nas 92 que os dois julgaram ensino, concordam no canal em 71 e no modelo de receita em 70. O `gpt-6-luna` diz "indeterminado" mais vezes em canal e receita, o que parece mais fiel ao que os sites dizem, mas sem gabarito isso não é precisão. Confiança nas empresas de ensino: Gemini 78 alta, 12 média, 3 baixa (de 93 em comum); `gpt-6-luna` 71 alta, 28 média, 5 baixa (de 104).
+
+| Julgamento "site de ensino" pelo LLM (não é precisão: falta gabarito) | Ensino, `gemini-3.5-flash-lite` | Ensino, `gpt-6-luna` | Data |
+|---|---|---|---|
+| Domínio do e-mail | 40 de 127 (31,5%) | 45 de 126 (35,7%) | 03/11/2026 |
+| Nome × título | 38 de 58 (65,5%) | 43 de 58 (74,1%) | 03/11/2026 |
+| CNPJ no rodapé | 16 de 19 (84,2%) | 16 de 19 (84,2%) | 03/11/2026 |
+| Total | 94 de 204 (46,1%) | 104 de 203 (51,2%) | 03/11/2026 |
+| Lotes 2 e 3 do Roger, todos os métodos (`gpt-6-luna`) | — | 504 de 745 (67,7%): e-mail 378 de 564, nome × título 89 de 125, rodapé 37 de 56 | 04/11/2026 |
+| Acumulado dos 3 lotes | — | 609 de 949 (64,2%): 608 pelo `gpt-6-luna` e 1 pelo `gemini-3.5-flash-lite` (a empresa que a moderação da OpenAI recusou) | 04/11/2026 |
+
+Lotes 2 e 3 (04/11/2026): 504 + 242 CNPJs entregues, 745 com texto útil, nenhum CNPJ repetido entre os 3 lotes e nenhum com mais de um site. O Roger mede 89% e 90% de homes com palavra de ensino; o LLM aceita 68% como site de ensino. Das 609 escolas, 602 têm embedding (7 ficaram com todos os campos "indeterminado").
 
 | Recuperação | Valor | Como |
 |---|---|---|
-| Concorrentes relevantes entre os 10 primeiros (ideias de teste) | | |
+| Concorrentes relevantes entre os 10 primeiros (ideias de teste) | 51 de 71 (72%): inglês online 10/10, liderança 10/10, concurso de TI 10/10 (todos de concursos, nenhum específico de TI), espanhol 8/10, Excel 6/6, informática p/ idosos 4/10, programação 2/10, música p/ crianças 1/5 | 04/11/2026. **Julgado pelo Claude, não por uma pessoa do grupo**: relevante = oferece o serviço da ideia; casos duvidosos contaram como não relevantes. Nos nichos com poucas escolas na base, a lista se completa com outros cursos ("marcenaria" aparece em 3 listas por limite do modelo de embedding). Falta revisão humana. |
+| Escolas do mesmo nicho por ideia (serviço ≥ 0,60), de 602 com embedding | inglês online 71, liderança 66, concurso de TI 61, espanhol 30, programação 12, informática p/ idosos 10, Excel 6, música p/ crianças 5 | 04/11/2026, `gpt-6-luna` + `paraphrase-multilingual-MiniLM-L12-v2`; uma chamada de `propor_recorte` por ideia (o recorte muda um pouco a cada chamada) |
+| Escolas que passavam do corte antigo (texto ≥ 0,35) | 207 a 566 de 602 (34% a 94%) | mesmas ideias e data |
+| Concordância com o `gabarito_100_rj.csv` do Roger (não é precisão) | serviço com semelhança ≥ 0,60 em 27 de 72; canal igual em 27 de 57 onde o LLM decidiu; receita igual em 10 de 15 onde o LLM decidiu; o LLM julgou 27 das 99 fora de ensino | 04/11/2026. O arquivo é um rascunho automático por CNAE (20 empresas por CNAE, mesmo texto em todas as 20; receita sempre preenchida, mesmo quando o site não diz). Ex.: marca "aulas de dança" numa empresa de cursos sobre autismo. Por isso **não serve para medir precisão** até alguém conferir as 100 à mão. |
+| Escolas classificadas que estão no `geno.duckdb` | 602 de 602: 553 ativas (situação 02), 39 baixadas, 8 inaptas, 1 suspensa, 1 nula | `geno.duckdb` do Lucas recebido em 04/11/2026 |
+| Tempo de `analisar()` por ideia | 3,3 a 4,7 s (+ ~2 s do `propor_recorte`) | 04/11/2026, 8 ideias, modelo de embedding já carregado |
 
 ## Custo
 
 | Serviço | Gasto total no MVP | Limite do plano |
 |---|---|---|
-| API do LLM | | |
+| API da OpenAI (`gpt-6-luna`) | US$ 0,05 em 03/11/2026: 203 classificações = 361.304 tokens de entrada e 21.139 de saída (US$ 0,10 e US$ 0,50 por milhão); mais 6 chamadas ao vivo de teste = 4.912 e 1.023 tokens (< US$ 0,01) ; lotes 2 e 3 em 04/11/2026: 745 classificações = 1.466.336 tokens de entrada e 87.597 de saída (US$ 0,19). Total: US$ 0,24 | Plano Build: 5.000 chamadas/min e 2 milhões de tokens/min nos modelos Luna (doc da OpenAI, 03/11/2026) |
+| API do Gemini (reserva) | | Chave no plano gratuito em 03/11/2026: 15 chamadas/min por modelo no `gemini-3.5-flash-lite` (erro 429 `generate_content_free_tier_requests`, limite 15) |
