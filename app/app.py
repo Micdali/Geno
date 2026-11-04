@@ -44,6 +44,8 @@ SITUACAO = {"ativa": "Ativa", "baixada": "Baixada", "inapta": "Inapta", "suspens
 ATRIBUTO = {"produto_servico": "Serviço", "publico": "Público", "canal": "Canal"}
 MARCA = {True: "✅", False: "❌", None: "❔"}
 NAO_SEI = "Não sei ainda"
+OUTRO = "Outro"
+SEPARADOR = "; "  # entre as opções marcadas numa pergunta de múltipla escolha
 
 st.set_page_config(page_title="Geno", page_icon=str(LOGO), layout="wide")
 
@@ -167,11 +169,9 @@ def tela_1():
                 '<span>Geno</span></div>', unsafe_allow_html=True)
     st.title(T.TITULO)
     with st.container(key="caixa"):
-        c1, c2 = st.columns([3, 1.3], vertical_alignment="bottom")
-        ideia = c1.text_area(T.CAMPO_IDEIA_LABEL, s.ideia, height=76, placeholder=T.CAMPO_IDEIA_PLACEHOLDER,
+        ideia = st.text_area(T.CAMPO_IDEIA_LABEL, s.ideia, height=76, placeholder=T.CAMPO_IDEIA_PLACEHOLDER,
                              label_visibility="collapsed")
-        with c2:
-            analisar_clicado = botao_principal(T.BOTAO_ANALISAR, "analisar")
+    analisar_clicado = botao_principal(T.BOTAO_ANALISAR, "analisar")  # abaixo da caixa, centralizado
     if analisar_clicado:
         if not ideia.strip():
             st.error(T.ERRO_IDEIA_VAZIA)
@@ -197,38 +197,61 @@ def tela_2():
 
     divisor("Ajuste o recorte")
     st.caption(T.RECORTE_AJUDA)
-    c1, c2, c3 = st.columns(3)
     canais = list(CANAIS)
-    editado = {
-        "produto_servico": c1.text_input(T.RECORTE_PRODUTO, a.get("produto_servico", "")).strip(),
-        "publico": c2.text_input(T.RECORTE_PUBLICO, a.get("publico", "")).strip(),
-        "canal": c3.selectbox(T.RECORTE_CANAL, canais, format_func=CANAIS.get,
-                              index=canais.index(a["canal"]) if a.get("canal") in CANAIS else canais.index("indeterminado")),
-    }
+    with st.container(key="campos_recorte"):  # empilhados e alinhados à esquerda: o texto do serviço cabe inteiro
+        editado = {
+            "produto_servico": st.text_input(T.RECORTE_PRODUTO, a.get("produto_servico", "")).strip(),
+            "publico": st.text_input(T.RECORTE_PUBLICO, a.get("publico", "")).strip(),
+            "canal": st.selectbox(T.RECORTE_CANAL, canais, format_func=CANAIS.get,
+                                  index=canais.index(a["canal"]) if a.get("canal") in CANAIS else canais.index("indeterminado")),
+        }
     st.caption(f"**{T.RECORTE_GEOGRAFIA}:** {T.RECORTE_GEOGRAFIA_PADRAO}")
 
     respostas = {}
     if r.get("perguntas"):
         divisor(T.AFUNILAR_INTRO)
+        st.caption(T.AFUNILAR_OPCIONAL)
         total = len(r["perguntas"])
         for atual_i, p in enumerate(r["perguntas"], 1):
             if total > 1:
                 st.caption(T.AFUNILAR_RODADA.format(atual=atual_i, total=total))
-            atual = s.respostas.get(p["pergunta"])
-            escolha = st.radio(p["pergunta"], p["opcoes"], index=p["opcoes"].index(atual) if atual in p["opcoes"] else None)
-            if escolha and escolha != NAO_SEI:
-                respostas[p["pergunta"]] = escolha
+            resposta = pergunta(p)
+            if resposta:
+                respostas[p["pergunta"]] = resposta
 
-    # "Analisar assim mesmo" é para pular as perguntas: sem perguntas, fica só o botão principal
+    # Um botão só: com respostas, o recorte é refinado antes de analisar; sem elas, analisa como está
     divisor()
-    c1, c2 = st.columns(2)
-    with c1:
-        confirmar_clicado = botao_principal(T.BOTAO_CONFIRMAR_RECORTE, "confirmar")
-    if confirmar_clicado:
+    if botao_principal(T.BOTAO_CONFIRMAR_RECORTE, "confirmar"):
         confirmar(editado, respostas)
-    if r.get("perguntas") and c2.button(T.BOTAO_ANALISAR_ASSIM_MESMO, width="stretch",
-                                        help="Analisa com o recorte de cima, sem responder às perguntas."):
-        confirmar(editado, {})
+
+
+def pergunta(p: dict) -> str | None:
+    """Uma pergunta da tela 2, como as do Claude: escolha única (rádio) ou várias (caixas), sempre com
+    "Outro" e texto livre. Devolve a resposta em texto (várias separadas por "; ") ou None."""
+    opcoes = [o for o in p["opcoes"] if o != NAO_SEI] + [OUTRO] + [NAO_SEI]
+    conhecidas = set(opcoes) - {OUTRO}
+    chave = f"perg_{abs(hash(p['pergunta']))}"  # muda quando o recorte traz outra pergunta
+    anterior = s.respostas.get(p["pergunta"]) or ""
+    if p.get("multipla"):
+        marcadas_antes = [x for x in anterior.split(SEPARADOR) if x]
+        livre_antes = SEPARADOR.join(x for x in marcadas_antes if x not in conhecidas)
+        st.markdown(f'<p class="geno-pergunta">{html.escape(p["pergunta"])}</p>'
+                    f'<p class="geno-pergunta-ajuda">{T.AFUNILAR_VARIAS}</p>', unsafe_allow_html=True)
+        marcadas = [o for j, o in enumerate(opcoes)
+                    if st.checkbox(o, value=(o in marcadas_antes) or (o == OUTRO and bool(livre_antes)), key=f"{chave}_{j}")]
+        livre = ""
+        if OUTRO in marcadas:
+            livre = st.text_input(T.AFUNILAR_OUTRO, livre_antes, key=f"{chave}_outro",
+                                  placeholder=T.AFUNILAR_OUTRO_EXEMPLO).strip()
+        partes = [o for o in marcadas if o not in (OUTRO, NAO_SEI)] + ([livre] if livre else [])
+        return SEPARADOR.join(partes) or None
+    indice = opcoes.index(anterior) if anterior in conhecidas else (opcoes.index(OUTRO) if anterior else None)
+    escolha = st.radio(p["pergunta"], opcoes, index=indice, key=chave)
+    if escolha == OUTRO:
+        livre = st.text_input(T.AFUNILAR_OUTRO, "" if anterior in conhecidas else anterior, key=f"{chave}_outro",
+                              placeholder=T.AFUNILAR_OUTRO_EXEMPLO).strip()
+        return livre or None
+    return None if escolha in (None, NAO_SEI) else escolha
 
 
 def confirmar(editado: dict, respostas: dict):

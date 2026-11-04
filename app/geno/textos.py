@@ -25,7 +25,7 @@ class T:
         "deram baixa e o que ninguém está atendendo."
     )
     CAMPO_IDEIA_LABEL = "Qual é a sua ideia?"
-    CAMPO_IDEIA_PLACEHOLDER = "Descreva sua ideia. Ex.: escola de inglês online para adultos"
+    CAMPO_IDEIA_PLACEHOLDER = "Descreva sua ideia"
     BOTAO_ANALISAR = "Analisar ideia"
     SEM_CADASTRO = "Sem cadastro. A primeira análise é grátis."
 
@@ -41,6 +41,10 @@ class T:
     # ------------------------------------------------------------------
     AFUNILAR_INTRO = "Para analisar com precisão, preciso entender melhor a ideia."
     AFUNILAR_RODADA = "Pergunta {atual} de {total}"
+    AFUNILAR_OPCIONAL = "Responder é opcional: as respostas deixam o recorte mais preciso."
+    AFUNILAR_VARIAS = "Marque quantas quiser."
+    AFUNILAR_OUTRO = "Outro: escreva com suas palavras"
+    AFUNILAR_OUTRO_EXEMPLO = "Descreva sua resposta"
     AFUNILAR_PUBLICO = "Para quem você pretende vender?"
     AFUNILAR_PRODUTO = "O que exatamente você ofereceria?"
     AFUNILAR_CANAL = "Como o cliente seria atendido: presencial, delivery, online ou os dois?"
@@ -65,7 +69,7 @@ class T:
     RECORTE_GEOGRAFIA_PADRAO = "Estado do Rio de Janeiro (piloto)"
     AVISO_PILOTO = "Versão piloto: ensino e treinamento no estado do Rio de Janeiro."
     RECORTE_GEOGRAFIA_REFINAR = "Refinar por cidade ou estado (opcional)"
-    BOTAO_CONFIRMAR_RECORTE = "Está certo, analisar"
+    BOTAO_CONFIRMAR_RECORTE = "Analisar recorte"
     BOTAO_CORRIGIR_RECORTE = "Corrigir"
 
     # ------------------------------------------------------------------

@@ -444,3 +444,17 @@ def test_propor_recorte_real_aquece_o_modelo(monkeypatch):
         {"descricao": "x", "atributos": RECORTE["atributos"], "cnaes": [], "perguntas": []}, "m"))
     nicho.propor_recorte("escola de inglês")
     assert chamadas == [1]
+
+
+def test_perguntas_sem_outro_e_com_multipla(monkeypatch):
+    monkeypatch.setattr(embeddings, "aquecer", lambda: None)
+
+    def gerar(prompt, schema, modelos, **kw):
+        assert "multipla" in schema["properties"]["perguntas"]["items"]["required"]
+        return {"descricao": "x", "atributos": RECORTE["atributos"], "cnaes": [],
+                "perguntas": [{"pergunta": "Formatos?", "opcoes": ["Grupo", "Outro", "Não sei ainda"], "multipla": True},
+                              {"pergunta": "Onde?", "opcoes": ["Centro", "outro:"]}]}, "m"
+
+    r = nicho.propor_recorte("escola de inglês", gerar=gerar)
+    assert r["perguntas"][0] == {"pergunta": "Formatos?", "opcoes": ["Grupo", "Não sei ainda"], "multipla": True}
+    assert r["perguntas"][1]["opcoes"] == ["Centro"] and r["perguntas"][1]["multipla"] is False

@@ -76,7 +76,7 @@ def test_erro_do_motor_mostra_saida(app, monkeypatch):
     monkeypatch.setattr(motor.analisar, "analisar", quebra)
     app.text_area[0].input("Escola de inglês online para adultos 40+").run()
     clicar(app, T.BOTAO_ANALISAR)
-    clicar(app, T.BOTAO_ANALISAR_ASSIM_MESMO)
+    clicar(app, T.BOTAO_CONFIRMAR_RECORTE)
     assert app.session_state.tela == 3 and "banco não encontrado" in app.session_state.erro
     clicar(app, "Ver com dados de exemplo")
     assert app.session_state.tela == 4
@@ -99,7 +99,7 @@ def test_sem_perguntas_fica_so_o_botao_principal(monkeypatch):
 def test_saturacao_fala_do_setor(app):
     app.text_area[0].input("Escola de inglês online para adultos 40+").run()
     clicar(app, T.BOTAO_ANALISAR)
-    clicar(app, T.BOTAO_ANALISAR_ASSIM_MESMO)  # com pergunta, o botão de pular aparece
+    clicar(app, T.BOTAO_CONFIRMAR_RECORTE)
     clicar(app, "Saturação")
     frases = [m.value for m in app.markdown]
     assert any("neste setor" in f for f in frases) and not any("neste recorte" in f for f in frases)
@@ -121,3 +121,43 @@ def test_pagina_inicial_so_tem_logo_slogan_e_caixa(app):
     app.text_area[0].input("Escola de inglês online para adultos 40+").run()
     clicar(app, T.BOTAO_ANALISAR)
     assert app.session_state.tela == 2 and any(b.label == "Nicho" for b in app.button)  # a linha volta na tela 2
+
+
+def _app_com_perguntas(monkeypatch, perguntas):
+    recebidas = []
+
+    def propor(ideia, respostas=None):
+        recebidas.append(respostas)
+        return json.loads(EXEMPLO.read_text(encoding="utf-8"))["recorte"] | {"perguntas": [] if respostas else perguntas}
+
+    nicho = types.ModuleType("motor.nicho")
+    nicho.propor_recorte = propor
+    monkeypatch.setitem(sys.modules, "motor.nicho", nicho)
+    monkeypatch.setattr(motor.analisar, "analisar",
+                        lambda ideia, recorte=None: json.loads(EXEMPLO.read_text(encoding="utf-8")) | {"ideia": ideia})
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    at.text_area[0].input("Escola de inglês online para adultos 40+").run()
+    clicar(at, T.BOTAO_ANALISAR)
+    return at, recebidas
+
+
+def test_pergunta_de_varias_opcoes_com_outro(monkeypatch):
+    at, recebidas = _app_com_perguntas(monkeypatch, [
+        {"pergunta": "Quais formatos?", "opcoes": ["Aulas em grupo", "Aulas individuais", "Não sei ainda"], "multipla": True}])
+    assert [c.label for c in at.checkbox] == ["Aulas em grupo", "Aulas individuais", "Outro", "Não sei ainda"]
+    at.checkbox[0].check().run()
+    at.checkbox[2].check().run()
+    at.text_input(key=next(k for k in at.session_state if str(k).endswith("_outro"))).input("Imersão de fim de semana").run()
+    clicar(at, T.BOTAO_CONFIRMAR_RECORTE)
+    assert recebidas[-1] == {"Quais formatos?": "Aulas em grupo; Imersão de fim de semana"}
+
+
+def test_pergunta_de_uma_opcao_com_outro_e_botao_unico(monkeypatch):
+    at, recebidas = _app_com_perguntas(monkeypatch, [
+        {"pergunta": "Onde?", "opcoes": ["Zona Sul", "Centro", "Não sei ainda"], "multipla": False}])
+    assert T.BOTAO_ANALISAR_ASSIM_MESMO not in [b.label for b in at.button]
+    assert at.radio[0].options == ["Zona Sul", "Centro", "Outro", "Não sei ainda"]
+    at.radio[0].set_value("Outro").run()
+    at.text_input(key=next(k for k in at.session_state if str(k).endswith("_outro"))).input("Niterói").run()
+    clicar(at, T.BOTAO_CONFIRMAR_RECORTE)
+    assert recebidas[-1] == {"Onde?": "Niterói"} and at.session_state.tela == 4

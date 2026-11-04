@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from . import config, embeddings, llm
 
-PROMPT_VERSAO = "v1"
+PROMPT_VERSAO = "v2"  # v2: perguntas de múltipla escolha (multipla) e sem "Outro" nas opções
 MAX_PERGUNTAS = 3
 
 SCHEMA = {
@@ -32,8 +32,9 @@ SCHEMA = {
             "items": {
                 "type": "object",
                 "properties": {"pergunta": {"type": "string"},
-                               "opcoes": {"type": "array", "items": {"type": "string"}}},
-                "required": ["pergunta", "opcoes"],
+                               "opcoes": {"type": "array", "items": {"type": "string"}},
+                               "multipla": {"type": "boolean"}},  # true: a pessoa pode marcar várias
+                "required": ["pergunta", "opcoes", "multipla"],
             },
         },
     },
@@ -46,7 +47,7 @@ def propor_recorte(ideia: str, respostas: dict[str, str] | None = None, gerar=No
 
     Returns:
         {"descricao", "atributos": {publico, produto_servico, canal}, "uf", "cnaes": [...],
-         "perguntas": [{"pergunta", "opcoes"}]}. Os três primeiros campos são o `recorte` do
+         "perguntas": [{"pergunta", "opcoes", "multipla"}]}. A tela acrescenta "Outro" com texto livre. Os três primeiros campos são o `recorte` do
         contrato 4; `cnaes` e `perguntas` são extras para a tela 2 e para a saturação.
     """
     cnaes = "\n".join(f"- {c}: {d}" for c, d in config.CNAES_PILOTO.items())
@@ -65,5 +66,9 @@ def propor_recorte(ideia: str, respostas: dict[str, str] | None = None, gerar=No
     partes = [p.strip() for p in (r.get("descricao") or "").split("·")]
     r["descricao"] = " · ".join(p for p in partes if p and p.lower() != "indeterminado")
     r["cnaes"] = [c for c in r.get("cnaes", []) if c in config.CNAES_PILOTO] or list(config.CNAES_PILOTO)
-    r["perguntas"] = [] if respostas and len(respostas) >= MAX_PERGUNTAS else r.get("perguntas", [])[:MAX_PERGUNTAS]
+    perguntas = [] if respostas and len(respostas) >= MAX_PERGUNTAS else r.get("perguntas", [])[:MAX_PERGUNTAS]
+    for p in perguntas:  # "Outro" é da tela, com texto livre; o LLM às vezes o inclui mesmo assim
+        p["opcoes"] = [o for o in p.get("opcoes", []) if o.strip().lower().rstrip(".:") != "outro"]
+        p["multipla"] = bool(p.get("multipla"))
+    r["perguntas"] = perguntas
     return r

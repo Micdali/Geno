@@ -42,8 +42,8 @@ _CSS = f"""
 /* Fundo: floresta à noite, em todas as telas */
 .stApp {{
     background-color: {CORES["noite"]};
-    background-image: radial-gradient(circle at 50% 30%, rgba(31,111,92,.9) 0, rgba(15,61,51,0) 65%),
-                      radial-gradient(rgba(250,243,231,.14) 1.2px, transparent 1.5px);
+    background-image: radial-gradient(circle at 50% 20%, rgba(31,111,92,.35) 0, rgba(15,61,51,0) 60%),
+                      radial-gradient(rgba(250,243,231,.09) 1.2px, transparent 1.5px);
     background-size: 100% 100%, 18px 18px;
     background-attachment: fixed;
     color: {CORES["creme"]};
@@ -120,6 +120,8 @@ h1, h2, h3 {{
 .stRadio [role="radiogroup"] label p {{ font-size: 1.08rem !important; color: {CORES["creme"]} !important; }}
 .stRadio [role="radiogroup"] {{ gap: .35rem; }}
 
+.st-key-campos_recorte {{ max-width: 680px; gap: 1.1rem; }}
+
 /* Caixas com borda (recorte da ideia) */
 [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) {{
     border-color: {_LINHA} !important; border-radius: 18px !important; background: rgba(250,243,231,.04); }}
@@ -143,6 +145,13 @@ h1, h2, h3 {{
 [data-testid="stRadioOption"] > div > div:first-child {{ border: 1.5px solid rgba(250,243,231,.6) !important;
     width: 1.15rem !important; height: 1.15rem !important; }}
 [data-testid="stRadioOption"] p {{ font-size: 1.08rem !important; }}
+.stCheckbox label p {{ font-size: 1.08rem !important; color: {CORES["creme"]} !important; }}
+[data-testid="stCheckbox"] label > div:not([data-testid]) {{ border: 1.5px solid rgba(250,243,231,.6) !important;
+    width: 1.15rem !important; height: 1.15rem !important; border-radius: 5px !important; }}
+[data-testid="stCheckbox"] label {{ align-items: center; }}
+.geno-pergunta {{ font-size: 1rem !important; font-weight: 600; color: rgba(250,243,231,.78); margin: 0; }}
+.geno-pergunta-ajuda {{ font-size: .92rem !important; color: rgba(250,243,231,.55); margin: 0 0 .3rem; }}
+.st-key-bp_confirmar {{ max-width: 340px; }}
 [data-testid="stMetricLabel"] p {{ font-size: 1rem !important; color: rgba(250,243,231,.72) !important; }}
 [data-testid="stColumn"]:has(> div > div > [data-testid="stMetric"]) + [data-testid="stColumn"] {{
     border-left: 1px solid {_LINHA}; padding-left: 1.4rem; }}
@@ -201,7 +210,10 @@ header[data-testid="stHeader"] {{ display: none; }}
 # Página inicial: sem cabeçalho, conteúdo centralizado e a caixa da ideia em destaque
 _CSS_HOME = f"""
 <style>
+.stApp {{ background-image: radial-gradient(circle at 50% 38%, rgba(31,111,92,.95) 0, rgba(15,61,51,0) 62%),
+                            radial-gradient(rgba(250,243,231,.16) 1.2px, transparent 1.5px); }}
 .stMainBlockContainer {{ max-width: 760px; padding-top: 14vh; padding-bottom: 6rem; }}
+.st-key-bp_analisar {{ max-width: 280px; margin: 1.4rem auto 0; }}
 .geno-home-logo {{ display: flex; justify-content: center; align-items: center; gap: .8rem; margin-bottom: 1.6rem; }}
 .geno-home-logo img {{ height: 4.2rem; width: auto; }}
 .geno-home-logo span {{ font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 3rem;
@@ -225,10 +237,7 @@ _CSS_HOME = f"""
 }}
 .st-key-caixa textarea::placeholder {{ color: rgba(23,38,31,.5); font-weight: 500; }}
 .st-key-caixa [data-testid="InputInstructions"] {{ display: none; }}  /* "Press Ctrl+Enter to apply", em inglês */
-.st-key-caixa [class*="st-key-bp_"] .stButton button {{ background: {CORES["noite"]}; white-space: nowrap;
-    box-shadow: 0 0 0 1.5px {CORES["noite"]}; }}
-.st-key-caixa [class*="st-key-bp_"] .stButton button:hover {{ background: {CORES["coral"]};
-    box-shadow: 0 0 0 1.5px {CORES["coral"]}, 0 12px 26px rgba(232,97,60,.35); }}
+
 </style>
 """
 
