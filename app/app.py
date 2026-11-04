@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import html
+import inspect
 import json
 import sys
 import time
@@ -26,9 +27,10 @@ sys.path[:0] = [str(RAIZ), str(APP)]  # motor/ está na raiz; geno/ (tema e text
 
 from geno.tema import (CORES, aplicar_cabecalho, aplicar_tema, aplicar_tema_home, botao_principal,  # noqa: E402
                        caixa_confianca, card_lacuna, divisor)
+from geno.carregamento import animacao  # noqa: E402
 from geno.textos import T  # noqa: E402
 from motor import embeddings  # noqa: E402
-from motor.analisar import analisar  # noqa: E402
+from motor.analisar import analisar, interpretar_saturacao  # noqa: E402
 
 try:
     from motor.nicho import propor_recorte
@@ -37,6 +39,7 @@ except ImportError:  # motor sem a parte da tela 2: recorte do arquivo de exempl
 
 EXEMPLO = RAIZ / "contratos" / "exemplos" / "resultado_analise.exemplo.json"
 LOGO = APP / "geno" / "logo.png"
+LOGO_BRANCO = APP / "geno" / "logo_branco.png"
 TELAS = ["Ideia", "Nicho", "Análise", "Concorrentes", "Saturação", "Lacunas"]
 CANAIS = {"online": "Online", "presencial": "Presencial", "hibrido": "Híbrido",
           "delivery": "Vai até o cliente", "indeterminado": "Não sei / tanto faz"}
@@ -50,15 +53,21 @@ SEPARADOR = "; "  # entre as opções marcadas numa pergunta de múltipla escolh
 st.set_page_config(page_title="Geno", page_icon=str(LOGO), layout="wide")
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def aquecer_motor() -> bool:
-    """Começa a carregar o modelo de embedding assim que o app abre (15 a 30 s na primeira vez), em segundo
-    plano: quando a pessoa chega à tela 3, ele já está pronto. Roda uma vez por processo."""
-    getattr(embeddings, "aquecer", lambda: None)()  # motor sem aquecer(): carrega na primeira análise
+    """Carrega o modelo de embedding quando o app abre, uma vez por processo, de forma síncrona.
+
+    Em segundo plano (thread), dentro do Streamlit, o carregamento levava de 50 a 80 s em vez de ~14 s e
+    travava a primeira análise e a animação (04/11/2026). Síncrono, só a primeira visita espera.
+    """
+    inicio = time.monotonic()
+    preparar = getattr(embeddings, "preparar", None)
+    if preparar:
+        preparar()
+    print(f"[app] modelo de embedding pronto em {time.monotonic() - inicio:.1f} s", flush=True)
     return True
 
 
-aquecer_motor()
 aplicar_tema()
 # Linha do tempo no topo: as etapas são st.button (clicáveis e acessíveis por teclado) desenhadas
 # como bolinhas; a barra verde anima da etapa anterior até a atual (ver linha_do_tempo).
@@ -101,6 +110,15 @@ st.markdown(f"""<style>
     .st-key-linha .stButton button p {{ position: absolute; width: 1px; height: 1px; overflow: hidden;
         clip: rect(0 0 0 0); white-space: nowrap; }} }}
 </style>""", unsafe_allow_html=True)
+
+# Primeira abertura do servidor: o modelo de embedding leva ~20 s para carregar; a constelação aparece
+# enquanto isso (as próximas visitas já encontram o modelo pronto e pulam este bloco)
+if not getattr(embeddings, "pronto", lambda: True)():
+    animacao()
+    st.markdown(f'<div class="geno-carga"><div class="geno-carga-etapa">{T.CARGA_PREPARANDO}</div>'
+                f'<div class="geno-carga-sub">{T.CARGA_PREPARANDO_SUB}</div></div>', unsafe_allow_html=True)
+    aquecer_motor()
+    st.rerun()
 s = st.session_state
 for chave, valor in {"tela": 1, "ideia": "", "recorte": None, "respostas": {}, "resultado": None, "erro": None}.items():
     s.setdefault(chave, valor)
@@ -164,10 +182,11 @@ def limite():
 def tela_1():
     # Página inicial: só logo, slogan e a caixa da ideia, centralizados sobre o fundo escuro
     aplicar_tema_home()
-    logo = base64.b64encode(LOGO.read_bytes()).decode()
+    logo = base64.b64encode(LOGO_BRANCO.read_bytes()).decode()  # versão branca, com o foguete laranja
     st.markdown(f'<div class="geno-home-logo"><img src="data:image/png;base64,{logo}" alt="">'
                 '<span>Geno</span></div>', unsafe_allow_html=True)
     st.title(T.TITULO)
+    st.markdown(f'<p class="geno-home-explica">{T.HOME_EXPLICACAO}</p>', unsafe_allow_html=True)
     with st.container(key="caixa"):
         ideia = st.text_area(T.CAMPO_IDEIA_LABEL, s.ideia, height=76, placeholder=T.CAMPO_IDEIA_PLACEHOLDER,
                              label_visibility="collapsed")
@@ -179,10 +198,9 @@ def tela_1():
         if len(ideia.strip()) < 10:
             st.error(T.ERRO_IDEIA_CURTA)
             return
-        with st.spinner("Entendendo sua ideia…"):
-            s.ideia, s.respostas, s.resultado = ideia.strip(), {}, None
-            s.recorte = sugerir_recorte(s.ideia)
-        ir(2)
+        s.ideia, s.respostas, s.resultado = ideia.strip(), {}, None
+        texto = s.ideia
+        iniciar_carga("recorte", lambda carga: sugerir_recorte(texto))
 
 
 def tela_2():
@@ -220,8 +238,7 @@ def tela_2():
                 respostas[p["pergunta"]] = resposta
 
     # Um botão só: com respostas, o recorte é refinado antes de analisar; sem elas, analisa como está
-    divisor()
-    if botao_principal(T.BOTAO_CONFIRMAR_RECORTE, "confirmar"):
+    if navegacao(1, T.BOTAO_CONFIRMAR_RECORTE, "recorte"):
         confirmar(editado, respostas)
 
 
@@ -258,28 +275,30 @@ def confirmar(editado: dict, respostas: dict):
     if not editado["produto_servico"]:
         st.error("Diga o que você vai oferecer.")
         return
-    r = s.recorte
-    mudou = {k: v for k, v in editado.items() if v != r["atributos"].get(k)}
+    mudou = {k: v for k, v in editado.items() if v != s.recorte["atributos"].get(k)}
     if respostas:
         s.respostas = s.respostas | respostas
-        with st.spinner("Afinando o recorte com suas respostas…"):
-            novo = sugerir_recorte(s.ideia, s.respostas)
-        if not novo.get("falhou"):
-            r = novo
+        texto, todas = s.ideia, dict(s.respostas)
+        iniciar_carga("refinar", lambda carga: sugerir_recorte(texto, todas), mudou=mudou)
+    aplicar_recorte(s.recorte, mudou)
+
+
+def aplicar_recorte(r: dict, mudou: dict):
+    """Guarda o recorte (com o que a pessoa editou à mão por cima) e vai para a análise."""
     r = r | {"atributos": r["atributos"] | mudou}
     if mudou or not r.get("descricao"):
         at = r["atributos"]
         canal = "" if at["canal"] == "indeterminado" else CANAIS[at["canal"]]
         r["descricao"] = " · ".join(x for x in (at["produto_servico"], at["publico"], canal) if x)
     s.recorte, s.resultado, s.erro = r, None, None
-    s.pop("tarefa", None)  # análise de um recorte antigo, se a pessoa saiu da tela 3 no meio
+    s.pop("carga", None)  # análise de um recorte antigo, se a pessoa saiu da tela 3 no meio
     ir(3)
 
 
 def tela_3():
-    st.title(T.PROGRESSO_TITULO)
-    st.caption(s.recorte["descricao"])
     if s.erro:
+        st.title(T.PROGRESSO_TITULO)
+        st.caption(s.recorte["descricao"])
         st.error(T.ERRO_SERVICO)
         with st.expander("Detalhe do erro"):
             st.code(s.erro)
@@ -296,29 +315,94 @@ def tela_3():
             ir(4)
         return
 
-    # A análise roda numa thread e só a barra (um fragment) se redesenha: se o script ficasse
-    # esperando, o Streamlit manteria os campos da tela 2 embaixo da barra.
-    if "tarefa" not in s:
-        s.tarefa, s.inicio = ThreadPoolExecutor(1).submit(analisar, s.ideia, s.recorte), time.monotonic()
-    progresso()
-    st.caption(T.PROGRESSO_DEMORA)
+    if "carga" not in s:
+        texto, recorte = s.ideia, s.recorte
+        iniciar_carga("analise", lambda carga: _analisar(texto, recorte, carga))
+    tela_carga()
+
+
+# --- carregamento: a constelação no meio da página, com a etapa por baixo ------------------------
+# A tarefa roda numa thread; só o texto (um fragment) se redesenha a cada 0,3 s, e a animação, que
+# fica fora do fragment, não reinicia. A etapa vem do motor (análise) ou do relógio (recorte).
+ETAPA_MIN_S = 0.9
+SUBTITULO_CARGA = {"refinar": "Afinando o recorte com as suas respostas"}  # no recorte vai a própria ideia
+
+
+def iniciar_carga(tipo: str, tarefa, **extra):
+    carga = {"tipo": tipo, "etapas": [], "mostrada": (-1, 0.0), "inicio": time.monotonic(), **extra}
+    carga["futuro"] = ThreadPoolExecutor(1).submit(tarefa, carga)
+    s.carga = carga
+    st.rerun()
+
+
+def _analisar(ideia: str, recorte: dict, carga: dict) -> dict:
+    """Chama o motor avisando as etapas reais, se ele souber avisar (o motor de exemplo dos testes não sabe)."""
+    if "progresso" in inspect.signature(analisar).parameters:
+        return analisar(ideia, recorte, progresso=carga["etapas"].append)
+    return analisar(ideia, recorte)
+
+
+def tela_carga():
+    animacao()
+    texto_da_carga()
 
 
 @st.fragment(run_every=0.3)
-def progresso():
-    if not s.tarefa.done():
-        # shortcut: progresso estimado pelo tempo, porque analisar() não informa as etapas; trocar se o motor passar a informar
-        t = time.monotonic() - s.inicio
-        etapas = T.PROGRESSO_ETAPAS
-        st.progress(min(0.95, t / (t + 8)), text=etapas[min(int(t // 5), len(etapas) - 1)])
+def texto_da_carga():
+    c = s.get("carga")
+    if not c:
         return
-    tarefa = s.pop("tarefa")
+    if not c["futuro"].done():
+        # cada etapa real fica pelo menos ETAPA_MIN_S na tela, em ordem, para dar tempo de ler
+        i, desde = c["mostrada"]
+        agora = time.monotonic()
+        if i < len(c["etapas"]) - 1 and (i < 0 or agora - desde >= ETAPA_MIN_S):
+            c["mostrada"] = (i := i + 1, agora)
+        if i >= 0:
+            etapa = c["etapas"][i]
+        elif c["tipo"] == "analise":
+            etapa = "Preparando a análise"
+        else:  # uma chamada só ao LLM: as frases são estimadas pelo tempo, não etapas reais
+            frases = T.CARGA_RECORTE_ETAPAS
+            etapa = frases[min(int((time.monotonic() - c["inicio"]) // 1.6), len(frases) - 1)]
+        if c["tipo"] == "recorte":
+            sub = f"“{s.ideia}”"
+        else:
+            sub = SUBTITULO_CARGA.get(c["tipo"]) or (s.recorte or {}).get("descricao", "")
+        st.markdown(f'<div class="geno-carga"><div class="geno-carga-etapa">{html.escape(etapa)}</div>'
+                    f'<div class="geno-carga-sub">{html.escape(sub)}</div></div>', unsafe_allow_html=True)
+        return
+    s.pop("carga")
     try:
-        s.resultado = tarefa.result()
-    except Exception as e:
+        resultado = c["futuro"].result()
+    except Exception as e:  # sugerir_recorte já trata as próprias falhas; isto é da análise
         s.erro = f"{type(e).__name__}: {e}"
         st.rerun()
-    ir(4)
+    if c["tipo"] == "recorte":
+        s.recorte = resultado
+        ir(2)
+    elif c["tipo"] == "refinar":
+        aplicar_recorte(s.recorte if resultado.get("falhou") else resultado, c["mudou"])
+    else:
+        s.resultado = resultado
+        ir(4)
+
+
+# --- navegação no fim das telas: Voltar à esquerda, Seguir à direita, igual em todas -------------
+def navegacao(voltar: int | None, rotulo_seguir: str | None, chave: str) -> bool:
+    """Botões do fim da tela. Devolve True quando a pessoa clica em seguir."""
+    divisor()
+    with st.container(key="navegacao"):
+        c1, c2 = st.columns(2, gap="medium")
+        if voltar and c1.button(T.BOTAO_VOLTAR, key=f"voltar_{chave}", width="stretch", icon=":material/arrow_back:"):
+            ir(voltar)
+        with c2:
+            return bool(rotulo_seguir) and botao_principal(rotulo_seguir, f"seguir_{chave}")
+
+
+def nova_ideia():
+    s.ideia, s.recorte, s.resultado, s.respostas, s.erro = "", None, None, {}, None
+    ir(1)
 
 
 def cabecalho():
@@ -341,7 +425,6 @@ def tela_4():
     cs = s.resultado["concorrentes"]
     if not cs:
         st.info(T.CONCORRENTES_VAZIO)
-        limite()
         return
     ativas = sum(c["situacao"] == "ativa" for c in cs)
     m1, m2, m3 = st.columns(3)
@@ -374,7 +457,6 @@ def tela_4():
         divisor()
         with st.expander("Em comum com eles e possíveis diferenciais", expanded=True):
             st.markdown("\n\n".join(f"**{t}:** {v}" for t, v in partes))
-    limite()
 
 
 def tela_5():
@@ -383,12 +465,15 @@ def tela_5():
     sat = s.resultado["saturacao"]
     if not sat.get("anos"):
         st.info("Não há dados de aberturas e baixas para este recorte.")
-        limite()
         return
     saldo = sat["total_aberturas"] - sat["total_baixas"]
-    if saldo:
-        frase = T.SATURACAO_FRASE_ABRIRAM_MAIS if saldo > 0 else T.SATURACAO_FRASE_FECHARAM_MAIS
-        st.write(frase.format(anos=len(sat["anos"])))
+    leitura = sat.get("interpretacao") or interpretar_saturacao(sat, s.resultado["confianca"]["n_empresas"])
+    if leitura.get("titulo"):  # o que os números querem dizer, antes dos números
+        st.markdown(f'<div class="geno-leitura"><div class="geno-leitura-rotulo">{T.SATURACAO_LEITURA}</div>'
+                    f'<h3>{html.escape(leitura["titulo"])}</h3>'
+                    + "".join(f"<p>{html.escape(p)}</p>" for p in leitura["paragrafos"]) + "</div>",
+                    unsafe_allow_html=True)
+        divisor("Os números, ano a ano")
     fig = go.Figure([go.Bar(name="Aberturas", x=sat["anos"], y=sat["aberturas"], marker_color=CORES["menta"]),
                      go.Bar(name="Baixas", x=sat["anos"], y=sat["baixas"], marker_color=CORES["coral"])])
     fig.update_layout(barmode="group", height=380, margin=dict(t=20, b=20), legend=dict(orientation="h"),
@@ -405,7 +490,6 @@ def tela_5():
     if s.resultado["confianca"].get("usou_setor_amplo"):
         st.info("Estes números são do setor inteiro (CNAE), não só do seu nicho.")
     st.caption(f"{T.BAIXA_CNPJ_AVISO} Fonte: {sat['fonte']}")
-    limite()
 
 
 def empresas_base(lacuna: dict, nomes: dict) -> pd.DataFrame:
@@ -426,7 +510,6 @@ def tela_6():
     lacunas = s.resultado["lacunas"]
     if not lacunas:
         st.info(T.LACUNA_NENHUMA)
-        limite()
         return
     nomes = {c["cnpj"]: c["nome_exibicao"] for c in s.resultado["concorrentes"]}
     for i, l in enumerate(lacunas):
@@ -447,13 +530,24 @@ def tela_6():
             st.caption(T.LACUNA_EMPRESAS_AJUDA + "  \n" + " · ".join(f"{ATRIBUTO[a]}: {v}" for a, v in l["atributos"].items())
                        + ("  \n✅ atende · ❌ não atende · ❔ o site não diz" if l.get("atendimento") else ""))
             st.dataframe(empresas_base(l, nomes), hide_index=True, width="stretch")
-    limite()
 
 
 if (s.tela >= 4 and not s.resultado) or (s.tela in (2, 3) and not s.recorte):
     s.tela = 1
 if s.tela > 1:  # a página inicial não mostra o progresso
     linha_do_tempo()
-[tela_1, tela_2, tela_3, tela_4, tela_5, tela_6][s.tela - 1]()
-if s.tela in (2, 3):  # nas telas de resultado o limite() já diz o mesmo; a inicial fica limpa
-    st.markdown(f'<div class="geno-limite">{T.RODAPE}</div>', unsafe_allow_html=True)
+if s.get("carga") and s.carga["tipo"] in ("recorte", "refinar"):
+    tela_carga()  # a animação toma o lugar do conteúdo da tela 1 ou 2
+else:
+    [tela_1, tela_2, tela_3, tela_4, tela_5, tela_6][s.tela - 1]()
+    # fim das telas de resultado: Voltar e Seguir na mesma posição em todas
+    if s.tela == 4 and navegacao(2, T.BOTAO_VER_SATURACAO, "concorrentes"):
+        ir(5)
+    elif s.tela == 5 and navegacao(4, T.BOTAO_VER_LACUNAS, "saturacao"):
+        ir(6)
+    elif s.tela == 6 and navegacao(5, T.BOTAO_NOVA_IDEIA, "lacunas"):
+        nova_ideia()
+    if s.tela >= 4:
+        limite()
+    elif s.tela == 2:
+        st.markdown(f'<div class="geno-limite">{T.RODAPE}</div>', unsafe_allow_html=True)

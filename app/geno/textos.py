@@ -27,6 +27,11 @@ class T:
     CAMPO_IDEIA_LABEL = "Qual é a sua ideia?"
     CAMPO_IDEIA_PLACEHOLDER = "Descreva sua ideia"
     BOTAO_ANALISAR = "Analisar ideia"
+    HOME_EXPLICACAO = (
+        "Descreva o negócio que você pensa em abrir: o que oferece, para quem e como. O Geno cruza dados "
+        "da Receita Federal com sites de escolas do RJ e mostra quem já faz algo parecido, se o setor "
+        "cresce e o que ninguém atende."
+    )
     SEM_CADASTRO = "Sem cadastro. A primeira análise é grátis."
 
     # ------------------------------------------------------------------
@@ -70,6 +75,14 @@ class T:
     AVISO_PILOTO = "Versão piloto: ensino e treinamento no estado do Rio de Janeiro."
     RECORTE_GEOGRAFIA_REFINAR = "Refinar por cidade ou estado (opcional)"
     BOTAO_CONFIRMAR_RECORTE = "Analisar recorte"
+    BOTAO_VOLTAR = "Voltar"
+    BOTAO_VER_SATURACAO = "Ver a saturação"
+    BOTAO_VER_LACUNAS = "Ver as lacunas"
+    BOTAO_NOVA_IDEIA = "Analisar outra ideia"
+    CARGA_PREPARANDO = "Preparando o Geno"
+    CARGA_PREPARANDO_SUB = "Só na primeira abertura: leva uns 20 segundos."
+    CARGA_RECORTE_ETAPAS = ["Lendo a sua ideia", "Identificando o nicho", "Preparando as perguntas"]
+    SATURACAO_LEITURA = "O que isso quer dizer"
     BOTAO_CORRIGIR_RECORTE = "Corrigir"
 
     # ------------------------------------------------------------------

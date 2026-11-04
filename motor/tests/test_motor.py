@@ -349,7 +349,11 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
     monkeypatch.setattr(diferencial.llm, "gerar_json", lambda *a, **kw: (
         {"em_comum": "a", "possiveis_diferenciais": "b", "nao_verificado": "c"}, "m"))
 
-    r = mod_analisar.analisar("escola de inglês online em grupo para 40+", recorte=RECORTE)
+    etapas = []
+    r = mod_analisar.analisar("escola de inglês online em grupo para 40+", recorte=RECORTE, progresso=etapas.append)
+    assert etapas[0] == "Contando aberturas e baixas no setor" and etapas[-1].startswith("Escrevendo")
+    assert any("60 escolas com site" in e for e in etapas)
+    assert r["saturacao"]["interpretacao"]["titulo"] and len(r["saturacao"]["interpretacao"]["paragrafos"]) == 3
 
     assert set(r) == {"ideia", "recorte", "confianca", "concorrentes", "saturacao", "lacunas", "diferencial", "gerado_em"}
     assert set(r["recorte"]) == {"descricao", "atributos", "uf"} and r["recorte"]["uf"] == "RJ"
@@ -458,3 +462,22 @@ def test_perguntas_sem_outro_e_com_multipla(monkeypatch):
     r = nicho.propor_recorte("escola de inglês", gerar=gerar)
     assert r["perguntas"][0] == {"pergunta": "Formatos?", "opcoes": ["Grupo", "Não sei ainda"], "multipla": True}
     assert r["perguntas"][1]["opcoes"] == ["Centro"] and r["perguntas"][1]["multipla"] is False
+
+
+def test_interpretar_saturacao():
+    expansao = {"anos": [2021, 2025], "aberturas": [100, 200], "baixas": [40, 50], "total_aberturas": 300,
+                "total_baixas": 90}
+    r = mod_analisar.interpretar_saturacao(expansao, 4199)
+    assert r["titulo"].startswith("Setor em expansão")
+    assert "para cada 10 que abriram, cerca de 3 fecharam" in r["paragrafos"][0] and "+210" in r["paragrafos"][0]
+    assert "4.199" in r["paragrafos"][0] and "atraindo gente nova" in r["paragrafos"][1]
+    aperto = {"anos": [2021, 2025], "aberturas": [100, 110], "baixas": [50, 90], "total_aberturas": 210,
+              "total_baixas": 140}
+    r = mod_analisar.interpretar_saturacao(aperto, 10)
+    assert r["titulo"].startswith("Setor com muita rotatividade") and "mais apertado" in r["paragrafos"][1]
+    queda = {"anos": [2021, 2025], "aberturas": [50, 40], "baixas": [60, 70], "total_aberturas": 90,
+             "total_baixas": 130}
+    assert mod_analisar.interpretar_saturacao(queda, 10)["titulo"].startswith("Setor encolhendo")
+    texto = " ".join(mod_analisar.interpretar_saturacao(queda, 10)["paragrafos"]).lower()
+    assert "abra" not in texto.split() and "validar" not in texto
+    assert mod_analisar.interpretar_saturacao({"anos": []}, 0) == {"titulo": "", "paragrafos": []}

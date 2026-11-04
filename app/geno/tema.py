@@ -151,7 +151,24 @@ h1, h2, h3 {{
 [data-testid="stCheckbox"] label {{ align-items: center; }}
 .geno-pergunta {{ font-size: 1rem !important; font-weight: 600; color: rgba(250,243,231,.78); margin: 0; }}
 .geno-pergunta-ajuda {{ font-size: .92rem !important; color: rgba(250,243,231,.55); margin: 0 0 .3rem; }}
-.st-key-bp_confirmar {{ max-width: 340px; }}
+/* Navegação no fim das telas: mesma largura e posição em todas */
+.st-key-navegacao {{ max-width: 640px; margin: 0 auto; }}
+.st-key-navegacao .stButton button[kind="secondary"] {{ min-height: 3.25rem; border-radius: 16px; }}
+
+/* Carregamento: etapa grande sob a constelação */
+.geno-carga {{ text-align: center; margin-top: -1rem; }}
+.geno-carga-etapa {{ font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: clamp(1.6rem, 3.4vw, 2.2rem);
+    color: {CORES["creme"]}; animation: geno-aparece .5s ease-out; }}
+.geno-carga-sub {{ margin-top: .5rem; font-size: 1.05rem; color: rgba(250,243,231,.6); }}
+@keyframes geno-aparece {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: none; }} }}
+@media (prefers-reduced-motion: reduce) {{ .geno-carga-etapa {{ animation: none; }} }}
+iframe[title="st.iframe"], [data-testid="stIFrame"] {{ background: transparent; }}
+
+/* Leitura da saturação: o que os números querem dizer */
+.geno-leitura {{ border-left: 4px solid {CORES["menta"]}; padding: .2rem 0 .2rem 1.4rem; margin: .4rem 0 .6rem; }}
+.geno-leitura-rotulo {{ font-size: .95rem; font-weight: 700; color: {CORES["menta"]}; margin-bottom: .3rem; }}
+.geno-leitura h3 {{ margin: 0 0 .8rem !important; font-size: 1.7rem !important; line-height: 1.25; }}
+.geno-leitura p {{ font-size: 1.15rem; line-height: 1.7; color: rgba(250,243,231,.9); margin: 0 0 .7rem; }}
 [data-testid="stMetricLabel"] p {{ font-size: 1rem !important; color: rgba(250,243,231,.72) !important; }}
 [data-testid="stColumn"]:has(> div > div > [data-testid="stMetric"]) + [data-testid="stColumn"] {{
     border-left: 1px solid {_LINHA}; padding-left: 1.4rem; }}
@@ -200,6 +217,8 @@ _CSS_CABECALHO = f"""
     box-shadow: 0 14px 34px rgba(4,20,16,.35), inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1px 0 rgba(23,38,31,.08);
 }}
 .st-key-cabecalho .geno-slogan {{ display: none; }}
+/* o Streamlit põe margin-bottom negativa no texto; dentro da pílula isso descentralizava o logo */
+.st-key-cabecalho [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
 @media (max-width: 640px) {{ .st-key-cabecalho {{ border-radius: 28px; padding: .5rem .8rem; }} }}
 .st-key-cabecalho, .st-key-cabecalho p, .st-key-cabecalho .geno-slogan {{ color: {CORES["tinta"]}; }}
 .st-key-cabecalho p {{ font-size: .95rem; }}
@@ -212,14 +231,18 @@ _CSS_HOME = f"""
 <style>
 .stApp {{ background-image: radial-gradient(circle at 50% 38%, rgba(31,111,92,.95) 0, rgba(15,61,51,0) 62%),
                             radial-gradient(rgba(250,243,231,.16) 1.2px, transparent 1.5px); }}
-.stMainBlockContainer {{ max-width: 760px; padding-top: 14vh; padding-bottom: 6rem; }}
+.stMainBlockContainer {{ max-width: 900px; padding-top: 12vh; padding-bottom: 6rem; }}
 .st-key-bp_analisar {{ max-width: 280px; margin: 1.4rem auto 0; }}
 .geno-home-logo {{ display: flex; justify-content: center; align-items: center; gap: .8rem; margin-bottom: 1.6rem; }}
 .geno-home-logo img {{ height: 4.2rem; width: auto; }}
 .geno-home-logo span {{ font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 3rem;
     color: {CORES["creme"]}; letter-spacing: -0.02em; }}
-.stApp h1 {{ text-align: center; font-size: clamp(2.1rem, 5.2vw, 3.3rem) !important; line-height: 1.1;
-    margin-bottom: 2.2rem; }}
+/* Slogan em duas linhas, com a explicação curta logo abaixo */
+.stApp h1 {{ text-align: center; font-size: clamp(1.9rem, 4.1vw, 3rem) !important; line-height: 1.12;
+    margin: 0 auto .9rem; text-wrap: balance; max-width: 22ch; }}
+.geno-home-explica {{ text-align: center; max-width: 700px; margin: 0 auto 2rem; font-size: 1rem !important;
+    line-height: 1.6; color: rgba(250,243,231,.68); }}
+.st-key-caixa {{ max-width: 700px; margin-left: auto; margin-right: auto; }}
 .st-key-caixa {{
     background: {CORES["creme"]}; border-radius: 26px; padding: .7rem .7rem .7rem 1.2rem;
     box-shadow: 0 24px 60px rgba(4,20,16,.45);

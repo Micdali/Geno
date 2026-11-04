@@ -36,6 +36,16 @@ def _modelo():
     return _MODELO
 
 
+def pronto() -> bool:
+    """O modelo já está carregado neste processo?"""
+    return _MODELO is not None
+
+
+def preparar() -> None:
+    """Carrega o modelo agora, nesta thread (o app chama ao abrir; veja app.aquecer_motor)."""
+    _modelo()
+
+
 def aquecer() -> None:
     """Começa a carregar o modelo em segundo plano (leva de 15 a 30 s na primeira vez).
 
@@ -50,7 +60,12 @@ def vetorizar(textos: list[str]) -> np.ndarray:
     """Vetores normalizados (norma 1), shape (n, 384)."""
     if not textos:
         return np.zeros((0, 384), dtype=np.float32)
-    return _modelo().encode(textos, normalize_embeddings=True, convert_to_numpy=True).astype(np.float32)
+    modelo = _modelo()
+    import torch
+    # o limite de threads do PyTorch vale por thread: o app vetoriza em threads diferentes da que carregou
+    if torch.get_num_threads() != config.EMBEDDING_THREADS:
+        torch.set_num_threads(config.EMBEDDING_THREADS)
+    return modelo.encode(textos, normalize_embeddings=True, convert_to_numpy=True).astype(np.float32)
 
 
 def _limpo(valor) -> str:
