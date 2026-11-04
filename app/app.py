@@ -24,8 +24,8 @@ APP = Path(__file__).resolve().parent
 RAIZ = APP.parent
 sys.path[:0] = [str(RAIZ), str(APP)]  # motor/ está na raiz; geno/ (tema e textos) em app/
 
-from geno.tema import (CORES, aplicar_tema, aplicar_tema_home, caixa_confianca, card_lacuna,  # noqa: E402
-                       logo_claro)
+from geno.tema import (CORES, aplicar_cabecalho, aplicar_tema, aplicar_tema_home, botao_principal,  # noqa: E402
+                       caixa_confianca, card_lacuna, divisor)
 from geno.textos import T  # noqa: E402
 from motor import embeddings  # noqa: E402
 from motor.analisar import analisar  # noqa: E402
@@ -61,12 +61,11 @@ aplicar_tema()
 # Linha do tempo no topo: as etapas são st.button (clicáveis e acessíveis por teclado) desenhadas
 # como bolinhas; a barra verde anima da etapa anterior até a atual (ver linha_do_tempo).
 st.markdown(f"""<style>
-.stMainBlockContainer {{ padding-top: 2.5rem; }}
 .geno-topo {{ display: flex; align-items: center; gap: .6rem; }}
 .geno-topo img {{ height: 2.75rem; width: auto; }}
-.geno-marca {{ font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 1.75rem; color: {CORES["tinta"]}; }}
+.geno-marca {{ font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 1.75rem; color: {CORES["tinta"]}; }}
 .geno-slogan {{ font-size: .9rem; opacity: .7; margin-left: .25rem; }}
-.st-key-linha {{ position: relative; gap: 0; margin: .5rem 0 1.5rem; }}
+.st-key-linha {{ position: relative; gap: 0; margin: .2rem 0 0; }}
 .st-key-linha [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap; gap: .25rem; }}
 .st-key-linha [data-testid="stColumn"] {{ min-width: 0; counter-increment: passo; }}
 .st-key-linha .stButton button, .st-key-linha .stButton button:hover, .st-key-linha .stButton button:disabled {{
@@ -95,6 +94,7 @@ st.markdown(f"""<style>
 @media (prefers-reduced-motion: reduce) {{ .geno-cheio, .st-key-linha .stButton button::before {{ animation: none; }} }}
 @media (max-width: 640px) {{
     .geno-slogan {{ display: none; }}
+    .stMainBlockContainer {{ padding-top: 11rem; }}
     /* some da tela, mas o leitor de tela continua lendo o nome da etapa */
     .st-key-linha .stButton button p {{ position: absolute; width: 1px; height: 1px; overflow: hidden;
         clip: rect(0 0 0 0); white-space: nowrap; }} }}
@@ -132,15 +132,18 @@ def sugerir_recorte(ideia: str, respostas: dict | None = None) -> dict:
 # --- topo: logo e linha do tempo -----------------------------------------------------------------
 def linha_do_tempo():
     logo = base64.b64encode(LOGO.read_bytes()).decode()
-    st.markdown(f'<div class="geno-topo"><img src="data:image/png;base64,{logo}" alt="">'
+    cabecalho_fixo = st.container(key="cabecalho")
+    c_logo, c_linha = cabecalho_fixo.columns([1, 3.4], vertical_alignment="center")
+    c_logo.markdown(f'<div class="geno-topo"><img src="data:image/png;base64,{logo}" alt="">'
                 f'<span class="geno-marca">Geno</span><span class="geno-slogan">O mercado da sua ideia</span></div>',
                 unsafe_allow_html=True)
+    aplicar_cabecalho()
     anterior = s.get("tela_anterior", s.tela)
     de, para = (100 * (t - 1) / (len(TELAS) - 1) for t in (anterior, s.tela))
     # O Streamlit reaproveita o elemento e só troca o estilo; um nome de animação novo a cada troca
     # de tela é o que faz o navegador reiniciá-la.
     nome = f"geno-enche-{anterior}-{s.tela}"
-    with st.container(key="linha"):
+    with c_linha.container(key="linha"):
         st.markdown(f'<style>@keyframes {nome} {{ from {{ width: {de}%; }} to {{ width: {para}%; }} }}</style>'
                     f'<div class="geno-trilho"><div class="geno-cheio" style="width:{para}%;animation-name:{nome}">'
                     '</div></div>', unsafe_allow_html=True)
@@ -159,13 +162,16 @@ def limite():
 def tela_1():
     # Página inicial: só logo, slogan e a caixa da ideia, centralizados sobre o fundo escuro
     aplicar_tema_home()
-    logo_claro()
+    logo = base64.b64encode(LOGO.read_bytes()).decode()
+    st.markdown(f'<div class="geno-home-logo"><img src="data:image/png;base64,{logo}" alt="">'
+                '<span>Geno</span></div>', unsafe_allow_html=True)
     st.title(T.TITULO)
     with st.container(key="caixa"):
         c1, c2 = st.columns([3, 1.3], vertical_alignment="bottom")
         ideia = c1.text_area(T.CAMPO_IDEIA_LABEL, s.ideia, height=76, placeholder=T.CAMPO_IDEIA_PLACEHOLDER,
                              label_visibility="collapsed")
-        analisar_clicado = c2.button(T.BOTAO_ANALISAR, type="primary", width="stretch")
+        with c2:
+            analisar_clicado = botao_principal(T.BOTAO_ANALISAR, "analisar")
     if analisar_clicado:
         if not ideia.strip():
             st.error(T.ERRO_IDEIA_VAZIA)
@@ -187,8 +193,9 @@ def tela_2():
         st.warning("Não conseguimos sugerir o nicho agora. Preencha os campos abaixo com suas palavras.")
     elif r.get("descricao"):
         with st.container(border=True):
-            st.markdown(f"**{r['descricao']}**")
+            st.markdown(f"### {r['descricao']}")
 
+    divisor("Ajuste o recorte")
     st.caption(T.RECORTE_AJUDA)
     c1, c2, c3 = st.columns(3)
     canais = list(CANAIS)
@@ -202,7 +209,7 @@ def tela_2():
 
     respostas = {}
     if r.get("perguntas"):
-        st.markdown(f"**{T.AFUNILAR_INTRO}**")
+        divisor(T.AFUNILAR_INTRO)
         total = len(r["perguntas"])
         for atual_i, p in enumerate(r["perguntas"], 1):
             if total > 1:
@@ -213,8 +220,11 @@ def tela_2():
                 respostas[p["pergunta"]] = escolha
 
     # "Analisar assim mesmo" é para pular as perguntas: sem perguntas, fica só o botão principal
+    divisor()
     c1, c2 = st.columns(2)
-    if c1.button(T.BOTAO_CONFIRMAR_RECORTE, type="primary", width="stretch"):
+    with c1:
+        confirmar_clicado = botao_principal(T.BOTAO_CONFIRMAR_RECORTE, "confirmar")
+    if confirmar_clicado:
         confirmar(editado, respostas)
     if r.get("perguntas") and c2.button(T.BOTAO_ANALISAR_ASSIM_MESMO, width="stretch",
                                         help="Analisa com o recorte de cima, sem responder às perguntas."):
@@ -251,7 +261,9 @@ def tela_3():
         with st.expander("Detalhe do erro"):
             st.code(s.erro)
         c1, c2, c3 = st.columns(3)
-        if c1.button(T.BOTAO_TENTAR_NOVAMENTE, type="primary", width="stretch"):
+        with c1:
+            tentar = botao_principal(T.BOTAO_TENTAR_NOVAMENTE, "tentar")
+        if tentar:
             s.erro = None
             st.rerun()
         if c2.button("Voltar e ajustar", width="stretch"):
@@ -290,13 +302,14 @@ def cabecalho():
     r = s.resultado
     if "_aviso" in r:
         st.error("**Dados de exemplo:** empresas e números fictícios, só para ver as telas.", icon="🧪")
-    c1, c2 = st.columns([4, 1])
+    c1, c2 = st.columns([3, 1.2], vertical_alignment="center")
     c1.markdown(f"**Sua ideia:** _{r['ideia']}_  \n**Recorte:** {r['recorte']['descricao']}")
     if c2.button(f"✏️ {T.BOTAO_AJUSTAR_IDEIA}", width="stretch"):
         ir(2)
     conf = r["confianca"]
     # o texto vem do motor (contrato 4): escapado porque o tema o põe dentro de HTML
     caixa_confianca(conf["nivel"] if conf["nivel"] in ("alta", "media", "baixa") else "baixa", html.escape(conf["texto"]))
+    divisor()
 
 
 def tela_4():
@@ -312,6 +325,7 @@ def tela_4():
     m1.metric("Mais parecidas", len(cs))
     m2.metric("Ativas", ativas)
     m3.metric("Não ativas na Receita", len(cs) - ativas)
+    divisor("As mais parecidas com a sua ideia")
     df = pd.DataFrame({
         "Empresa": [c["nome_exibicao"] or "Nome não exibido" for c in cs],
         "O que oferece": [c["o_que_oferece"] for c in cs],
@@ -334,6 +348,7 @@ def tela_4():
                                           ("Possíveis diferenciais", "possiveis_diferenciais"),
                                           ("Não deu para verificar", "nao_verificado")) if d.get(k)]
     if partes:
+        divisor()
         with st.expander("Em comum com eles e possíveis diferenciais", expanded=True):
             st.markdown("\n\n".join(f"**{t}:** {v}" for t, v in partes))
     limite()
@@ -351,17 +366,19 @@ def tela_5():
     if saldo:
         frase = T.SATURACAO_FRASE_ABRIRAM_MAIS if saldo > 0 else T.SATURACAO_FRASE_FECHARAM_MAIS
         st.write(frase.format(anos=len(sat["anos"])))
-    fig = go.Figure([go.Bar(name="Aberturas", x=sat["anos"], y=sat["aberturas"], marker_color=CORES["floresta"]),
+    fig = go.Figure([go.Bar(name="Aberturas", x=sat["anos"], y=sat["aberturas"], marker_color=CORES["menta"]),
                      go.Bar(name="Baixas", x=sat["anos"], y=sat["baixas"], marker_color=CORES["coral"])])
     fig.update_layout(barmode="group", height=380, margin=dict(t=20, b=20), legend=dict(orientation="h"),
                       xaxis=dict(type="category"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                      font=dict(family="Manrope, sans-serif", color=CORES["tinta"]))
+                      font=dict(family="Manrope, sans-serif", color=CORES["creme"], size=15),
+                      yaxis=dict(gridcolor="rgba(250,243,231,.12)", zeroline=False))
     st.plotly_chart(fig, width="stretch")
     periodo = f"{sat['anos'][0]}–{sat['anos'][-1]}"
     c1, c2, c3 = st.columns(3)
     c1.metric(f"Aberturas ({periodo})", num(sat["total_aberturas"]))
     c2.metric(f"Baixas ({periodo})", num(sat["total_baixas"]))
     c3.metric("Saldo no período", num(saldo))
+    divisor()
     if s.resultado["confianca"].get("usou_setor_amplo"):
         st.info("Estes números são do setor inteiro (CNAE), não só do seu nicho.")
     st.caption(f"{T.BAIXA_CNPJ_AVISO} Fonte: {sat['fonte']}")
@@ -395,6 +412,8 @@ def tela_6():
             n=l["n_empresas_analisadas"], k=k, combinacao=combinacao)
         if k == 1:
             frase = frase.replace("oferecem", "oferece")
+        if i:
+            divisor()
         if i == 0:  # o título vem do LLM: escapado porque o card é HTML
             card_lacuna(html.escape(l["titulo"]), html.escape(frase))
         else:
