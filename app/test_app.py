@@ -46,9 +46,9 @@ def test_fluxo_completo(app):
     clicar(at, T.BOTAO_CONFIRMAR_RECORTE)
     assert at.session_state.tela == 4
     assert at.session_state.respostas == {"As aulas seriam principalmente:": "Inglês para viagem"}
-    for tela in (5, 6):
-        clicar(at, f"{tela} ·")
-        assert at.session_state.tela == tela
+    for tela, etapa in ((5, "Saturação"), (6, "Lacunas")):
+        clicar(at, etapa)
+        assert at.session_state.tela == tela and at.session_state.tela_anterior == tela - 1
     assert any("nenhuma oferece" in m.value for m in at.markdown)
     clicar(at, f"✏️ {T.BOTAO_AJUSTAR_IDEIA}")
     assert at.session_state.tela == 2

@@ -8,6 +8,7 @@ Tema e textos são da Mariana (`app/geno/tema.py` e `app/geno/textos.py`).
 """
 from __future__ import annotations
 
+import base64
 import html
 import json
 import sys
@@ -23,7 +24,7 @@ APP = Path(__file__).resolve().parent
 RAIZ = APP.parent
 sys.path[:0] = [str(RAIZ), str(APP)]  # motor/ está na raiz; geno/ (tema e textos) em app/
 
-from geno.tema import CORES, aplicar_tema, caixa_confianca, card_lacuna, logo  # noqa: E402
+from geno.tema import CORES, aplicar_tema, caixa_confianca, card_lacuna  # noqa: E402
 from geno.textos import T  # noqa: E402
 from motor.analisar import analisar  # noqa: E402
 
@@ -33,7 +34,8 @@ except ImportError:  # motor sem a parte da tela 2: recorte do arquivo de exempl
     propor_recorte = None
 
 EXEMPLO = RAIZ / "contratos" / "exemplos" / "resultado_analise.exemplo.json"
-TELAS = ["Descrever ideia", "Confirmar nicho", "Processamento", "Concorrentes", "Saturação", "Lacunas"]
+LOGO = APP / "geno" / "logo.png"
+TELAS = ["Ideia", "Nicho", "Análise", "Concorrentes", "Saturação", "Lacunas"]
 CANAIS = {"online": "Online", "presencial": "Presencial", "hibrido": "Híbrido",
           "delivery": "Vai até o cliente", "indeterminado": "Não sei / tanto faz"}
 SITUACAO = {"ativa": "Ativa", "baixada": "Baixada", "inapta": "Inapta", "suspensa": "Suspensa", "nula": "Nula"}
@@ -41,15 +43,56 @@ ATRIBUTO = {"produto_servico": "Serviço", "publico": "Público", "canal": "Cana
 MARCA = {True: "✅", False: "❌", None: "❔"}
 NAO_SEI = "Não sei ainda"
 
-st.set_page_config(page_title="Geno", page_icon="🌱", layout="wide")
+st.set_page_config(page_title="Geno", page_icon=str(LOGO), layout="wide")
 aplicar_tema()
+# Linha do tempo no topo: as etapas são st.button (clicáveis e acessíveis por teclado) desenhadas
+# como bolinhas; a barra verde anima da etapa anterior até a atual (ver linha_do_tempo).
+st.markdown(f"""<style>
+.stMainBlockContainer {{ padding-top: 2.5rem; }}
+.geno-topo {{ display: flex; align-items: center; gap: .6rem; }}
+.geno-topo img {{ height: 2.75rem; width: auto; }}
+.geno-marca {{ font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 1.75rem; color: {CORES["tinta"]}; }}
+.geno-slogan {{ font-size: .9rem; opacity: .7; margin-left: .25rem; }}
+.st-key-linha {{ position: relative; gap: 0; margin: .5rem 0 1.5rem; }}
+.st-key-linha [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap; gap: .25rem; }}
+.st-key-linha [data-testid="stColumn"] {{ min-width: 0; counter-increment: passo; }}
+.st-key-linha .stButton button, .st-key-linha .stButton button:hover, .st-key-linha .stButton button:disabled {{
+    flex-direction: column; background: transparent; border: none; border-radius: 8px; padding: 0;
+    min-height: 0; box-shadow: none; opacity: 1; color: {CORES["tinta"]}; font-weight: 600; }}
+.st-key-linha .stButton button::before {{
+    content: counter(passo); position: relative; z-index: 1; display: flex; align-items: center;
+    justify-content: center; width: 2.25rem; height: 2.25rem; margin: 0 auto .4rem; border-radius: 50%;
+    background: {CORES["creme"]}; border: 2px solid {CORES["floresta"]}; color: {CORES["floresta"]};
+    font-weight: 700; transition: transform .2s; }}
+.st-key-linha .stButton button:not(:disabled):hover::before {{ transform: scale(1.08); }}
+.st-key-linha .stButton button[kind="tertiary"]::before {{ content: "✓"; background: {CORES["floresta"]}; color: #fff; }}
+.st-key-linha .stButton button[kind="primary"]::before {{
+    background: {CORES["floresta"]}; color: #fff; box-shadow: 0 0 0 5px rgba(31,111,92,.18);
+    animation: geno-pulso .6s ease-out; }}
+.st-key-linha .stButton button[kind="primary"] p {{ color: {CORES["floresta"]}; }}
+.st-key-linha .stButton button:disabled {{ cursor: not-allowed; }}
+.st-key-linha .stButton button:disabled:not([kind="tertiary"])::before {{ border-style: dashed; opacity: .5; }}
+.st-key-linha .stButton button:disabled:not([kind="tertiary"]) p {{ opacity: .5; }}
+.st-key-linha .stButton button:focus-visible {{ outline: 2px solid {CORES["floresta"]}; outline-offset: 4px; }}
+.geno-trilho {{ position: absolute; top: 1.125rem; left: 8.33%; right: 8.33%; height: 3px;
+    transform: translateY(-50%); background: {CORES["areia"]}; border-radius: 3px; }}
+.geno-cheio {{ height: 100%; background: {CORES["floresta"]}; border-radius: 3px;
+    animation-duration: .7s; animation-timing-function: ease-in-out; }}
+@keyframes geno-pulso {{ 0% {{ transform: scale(.7); }} 60% {{ transform: scale(1.15); }} 100% {{ transform: scale(1); }} }}
+@media (prefers-reduced-motion: reduce) {{ .geno-cheio, .st-key-linha .stButton button::before {{ animation: none; }} }}
+@media (max-width: 640px) {{
+    .geno-slogan {{ display: none; }}
+    /* some da tela, mas o leitor de tela continua lendo o nome da etapa */
+    .st-key-linha .stButton button p {{ position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap; }} }}
+</style>""", unsafe_allow_html=True)
 s = st.session_state
 for chave, valor in {"tela": 1, "ideia": "", "recorte": None, "respostas": {}, "resultado": None, "erro": None}.items():
     s.setdefault(chave, valor)
 
 
 def ir(tela: int):
-    s.tela = tela
+    s.tela_anterior, s.tela = s.tela, tela
     st.rerun()
 
 
@@ -73,17 +116,26 @@ def sugerir_recorte(ideia: str, respostas: dict | None = None) -> dict:
                 "perguntas": [], "falhou": True}
 
 
-# --- barra lateral -------------------------------------------------------------------------------
-with st.sidebar:
-    logo(130)
-    st.caption("O mercado da sua ideia")
-    for i, nome in enumerate(TELAS, 1):
-        liberada = i == 1 or (i == 2 and s.recorte) or (i >= 4 and s.resultado)
-        if st.button(f"{i} · {nome}", key=f"nav{i}", disabled=not liberada, width="stretch",
-                     type="primary" if i == s.tela else "secondary"):
-            ir(i)
-    st.divider()
-    st.caption(T.RODAPE)
+# --- topo: logo e linha do tempo -----------------------------------------------------------------
+def linha_do_tempo():
+    logo = base64.b64encode(LOGO.read_bytes()).decode()
+    st.markdown(f'<div class="geno-topo"><img src="data:image/png;base64,{logo}" alt="">'
+                f'<span class="geno-marca">Geno</span><span class="geno-slogan">O mercado da sua ideia</span></div>',
+                unsafe_allow_html=True)
+    anterior = s.get("tela_anterior", s.tela)
+    de, para = (100 * (t - 1) / (len(TELAS) - 1) for t in (anterior, s.tela))
+    # O Streamlit reaproveita o elemento e só troca o estilo; um nome de animação novo a cada troca
+    # de tela é o que faz o navegador reiniciá-la.
+    nome = f"geno-enche-{anterior}-{s.tela}"
+    with st.container(key="linha"):
+        st.markdown(f'<style>@keyframes {nome} {{ from {{ width: {de}%; }} to {{ width: {para}%; }} }}</style>'
+                    f'<div class="geno-trilho"><div class="geno-cheio" style="width:{para}%;animation-name:{nome}">'
+                    '</div></div>', unsafe_allow_html=True)
+        for i, (coluna, nome) in enumerate(zip(st.columns(len(TELAS)), TELAS), 1):
+            liberada = i == 1 or (i == 2 and s.recorte) or (i >= 4 and s.resultado)
+            tipo = "primary" if i == s.tela else "tertiary" if i < s.tela else "secondary"
+            if coluna.button(nome, key=f"nav{i}", disabled=not liberada, type=tipo, width="stretch"):
+                ir(i)
 
 
 def limite():
@@ -339,4 +391,7 @@ def tela_6():
 
 if (s.tela >= 4 and not s.resultado) or (s.tela in (2, 3) and not s.recorte):
     s.tela = 1
+linha_do_tempo()
 [tela_1, tela_2, tela_3, tela_4, tela_5, tela_6][s.tela - 1]()
+if s.tela <= 3:  # nas telas de resultado o limite() já diz o mesmo
+    st.markdown(f'<div class="geno-limite">{T.RODAPE}</div>', unsafe_allow_html=True)

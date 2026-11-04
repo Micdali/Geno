@@ -15,7 +15,7 @@ Chame `motor.analisar(ideia)`. Hoje ela devolve o [arquivo de exemplo](../contra
 5. Saturação: aberturas × baixas por ano
 6. Lacunas, mostrando as empresas que embasam cada conclusão
 
-O indicador de confiança aparece no cabeçalho das telas 4, 5 e 6. O botão "ajustar minha ideia" volta à tela 2 com o recorte carregado.
+A navegação é uma linha do tempo no topo: cada etapa é um botão (dá para voltar a qualquer etapa já liberada) e a barra verde anima da etapa anterior até a atual (desliga com "reduzir movimento" do sistema). O indicador de confiança aparece no cabeçalho das telas 4, 5 e 6. O botão "ajustar minha ideia" volta à tela 2 com o recorte carregado.
 
 ## Como rodar
 
@@ -30,7 +30,7 @@ Stack: **Streamlit** (testado na 1.66; `pip install -r requirements.txt` instala
 - **Tela 3** chama `motor.analisar(ideia, recorte)`. A barra de progresso é estimada pelo tempo, porque o motor não informa as etapas. Se der erro, a tela oferece tentar de novo, voltar ou ver os dados de exemplo.
 - Quando o resultado é o arquivo de exemplo (`_aviso` no JSON), o cabeçalho mostra uma faixa vermelha avisando que os dados são fictícios.
 - **Tela 6** mostra a tabela ✅/❌ quando a lacuna traz `atendimento` (extra do motor real).
-- **Tema e textos da Mariana** ficam em `app/geno/`: `tema.py` (CSS, caixa de confiança, card da lacuna), `textos.py` (todas as frases) e `logo.svg`. Cores e fontes (Manrope e Fraunces, do Google Fonts) estão em `.streamlit/config.toml`; mudar o `config.toml` exige reiniciar o app.
+- **Tema e textos da Mariana** ficam em `app/geno/`: `tema.py` (CSS, caixa de confiança, card da lacuna), `textos.py` (todas as frases) e `logo.png` (logo do foguete recolorida com a paleta: "G" verde-floresta, foguete coral; o `logo.svg` antigo não é mais usado). Cores e fontes (Manrope e Fraunces, do Google Fonts) estão em `.streamlit/config.toml`; mudar o `config.toml` exige reiniciar o app.
 - O texto da confiança vem pronto do motor (`confianca.texto`, contrato 4), não dos modelos do `textos.py`.
 
 ## `prototipo/`
