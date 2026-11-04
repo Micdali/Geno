@@ -105,8 +105,9 @@ def analisar(ideia: str, recorte: dict | None = None) -> dict:
 
     classif = classificar.carregar()
     cnpjs, matriz = embeddings.carregar()
-    vetor = embeddings.vetorizar([_texto_recorte(recorte)])[0]
+    vetor, vetor_servico = embeddings.vetorizar([_texto_recorte(recorte), recorte["atributos"]["produto_servico"]])
     ranking = lacunas.ranquear(vetor, cnpjs, matriz)
+    ranking = lacunas.filtrar_por_servico(vetor_servico, ranking, embeddings.carregar_servico())
     ranking = [(c, s) for c, s in ranking if c in set(classif["cnpj"])]
 
     publicos = _publicos([c for c, _ in ranking]) if ranking else pd.DataFrame(columns=["cnpj", "nome_exibicao", "situacao", "data_situacao"])

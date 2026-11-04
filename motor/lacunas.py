@@ -28,6 +28,15 @@ def ranquear(vetor_ideia: np.ndarray, cnpjs: list[str], matriz: np.ndarray,
     return [(cnpjs[i], round(float(max(0.0, sims[i])), 3)) for i in ordem if sims[i] >= minimo]
 
 
+def filtrar_por_servico(vetor_servico: np.ndarray, ranking: list[tuple[str, float]],
+                        vetores_servico: dict[str, np.ndarray],
+                        minimo: float = config.SERVICO_MIN) -> list[tuple[str, float]]:
+    """Mantém do ranking só as empresas do mesmo nicho: serviço com semelhança >= `minimo` ao da ideia.
+    Quem não tem serviço conhecido sai (o site não diz o que vende)."""
+    return [(c, s) for c, s in ranking
+            if c in vetores_servico and float(vetores_servico[c] @ vetor_servico) >= minimo]
+
+
 def atende_canal(canal_ideia: str, canal_empresa: str | None) -> bool | None:
     """Híbrido atende presencial e online. None = não dá para saber."""
     if not canal_empresa or canal_empresa == "indeterminado" or canal_ideia == "indeterminado":

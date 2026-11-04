@@ -61,7 +61,11 @@ CNAES_PILOTO = {
 
 # Provisórios do motor (calibrar com dado real)
 MAX_CHARS_TEXTO = 8000          # texto do site enviado ao LLM por empresa
-SEMELHANCA_MIN = 0.35           # abaixo disso a empresa não entra como "parecida"
+SEMELHANCA_MIN = 0.35           # texto inteiro (nicho, serviço, público, canal): primeiro corte e ordem
+# Mesmo nicho = o serviço da empresa parecido com o da ideia. Calibrado em 04/11/2026 com 602 escolas e
+# 8 ideias de teste (motor/README.md): com 0,35 no texto inteiro passavam de 34% a 94% das escolas para
+# qualquer ideia; com o serviço >= 0,60 ficam as do nicho (inglês 71, espanhol 30, Excel 6).
+SERVICO_MIN = 0.60
 MAX_CONCORRENTES = 10
 ATENDE_MIN = 0.45               # similaridade mínima para dizer que uma empresa atende um atributo
 

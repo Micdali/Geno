@@ -154,6 +154,23 @@ def test_atende_canal():
     assert lacunas.atende_canal("online", "indeterminado") is None
 
 
+def test_filtrar_por_servico_tira_outro_nicho_e_servico_desconhecido():
+    v = vetorizar_falso(["aulas de inglês", "aulas de inglês em grupo", "pilates"])
+    ranking = [("a", 0.9), ("b", 0.8), ("c", 0.7)]
+    r = lacunas.filtrar_por_servico(v[0], ranking, {"a": v[1], "b": v[2]}, minimo=0.6)
+    assert r == [("a", 0.9)]  # b é de outro nicho; c não tem serviço conhecido
+
+
+def test_embeddings_guarda_vetor_do_servico(tmp_path, monkeypatch):
+    monkeypatch.setattr(embeddings, "vetorizar", vetorizar_falso)
+    classif = pd.DataFrame([{"cnpj": "1", **classificacao_falsa()},
+                            {"cnpj": "2", **classificacao_falsa(produto_servico="indeterminado")}])
+    destino = tmp_path / "e.parquet"
+    embeddings.gerar(classif, destino)
+    s = embeddings.carregar_servico(destino)
+    assert set(s) == {"1"} and s["1"].shape == (64,)
+
+
 def test_ranquear_ordena_e_corta():
     v = vetorizar_falso(["inglês online adultos", "inglês online adultos", "pilates", "inglês adultos"])
     r = lacunas.ranquear(v[0], ["a", "b", "c"], v[1:], minimo=0.3)
@@ -218,6 +235,7 @@ def test_confianca_niveis():
     assert confianca.avaliar(1000, ["baixa"] * 40 + ["alta"] * 20, True)["nivel"] == "baixa"  # cai um nível
     c = confianca.avaliar(20881, ["alta"] * 5, True, "Dados insuficientes para apontar lacunas.")
     assert "20.881" in c["texto"] and "setor inteiro" in c["texto"] and "insuficientes" in c["texto"]
+    assert "ideia, de 20.881 estabelecimentos" in c["texto"]  # a vírgula da frase não vira ponto
     assert c["n_empresas"] == 20881 and c["n_com_site_classificado"] == 5
 
 
@@ -301,6 +319,9 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
     monkeypatch.setattr(embeddings, "vetorizar", vetorizar_falso)
     monkeypatch.setattr(classificar, "carregar", lambda: classif)
     monkeypatch.setattr(embeddings, "carregar", lambda: (cnpjs, vetorizar_falso(textos)))
+    servicos = dict(zip(cnpjs, vetorizar_falso(classif["produto_servico"].tolist())))
+    servicos.pop(cnpjs[2])  # serviço indeterminado: fica fora
+    monkeypatch.setattr(embeddings, "carregar_servico", lambda: servicos)
     monkeypatch.setattr(config, "parametros_lacuna", lambda: PARAMS)
     publicos = pd.DataFrame({"cnpj": cnpjs, "nome_exibicao": [f"Escola {i}" for i in range(n)],
                              "situacao": ["08" if i == 1 else "02" for i in range(n)],
@@ -323,6 +344,7 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
     assert set(c0) == {"cnpj", "nome_exibicao", "o_que_oferece", "publico", "canal", "situacao", "ano_baixa", "semelhanca", "site"}
     sems = [c["semelhanca"] for c in r["concorrentes"]]
     assert sems == sorted(sems, reverse=True) and all(0 <= s <= 1 for s in sems)
+    assert cnpjs[2] not in {c["cnpj"] for c in r["concorrentes"]}
     baixada = [c for c in r["concorrentes"] if c["cnpj"] == cnpjs[1]]
     assert not baixada or (baixada[0]["situacao"] == "baixada" and baixada[0]["ano_baixa"] == 2024)
     assert r["saturacao"]["baixas"] == [4, 5] and r["saturacao"]["total_aberturas"] == 22  # sem baixas de ofício

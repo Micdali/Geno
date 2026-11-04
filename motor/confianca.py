@@ -35,9 +35,10 @@ def avaliar(n_setor: int, confiancas_llm: list[str], usou_setor_amplo: bool, avi
         nivel = NIVEIS[NIVEIS.index(nivel) - 1]
 
     rotulo = {"alta": "Confiança alta", "media": "Confiança média", "baixa": "Confiança baixa"}[nivel]
+    n_setor_txt = f"{n_setor:,}".replace(",", ".")  # 20.881, separador de milhar brasileiro
     texto = (f"{rotulo}: analisamos o site de {n} empresas parecidas com a sua ideia, de "
-             f"{n_setor:,} estabelecimentos ativos do setor no {config.UF_PILOTO}. ".replace(",", ".")
-             + "Empresas sem site podem oferecer algo parecido.")
+             f"{n_setor_txt} estabelecimentos ativos do setor no {config.UF_PILOTO}. "
+             "Empresas sem site podem oferecer algo parecido.")
     if usou_setor_amplo:
         texto += " Aberturas e fechamentos são do setor inteiro (CNAE), não só do nicho."
     if aviso_lacuna:
