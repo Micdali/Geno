@@ -108,13 +108,41 @@
         "canal": "online"
       },
       "n_empresas_que_oferecem": 0,
-      "n_empresas_analisadas": 47,
+      "n_empresas_analisadas": 5,
       "cnpjs_base": [
         "99000001000101",
         "99000002000102",
         "99000003000103",
-        "99000004000104"
-      ]
+        "99000004000104",
+        "99000005000105"
+      ],
+      "atendimento": {
+        "99000001000101": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        },
+        "99000002000102": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        },
+        "99000003000103": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        },
+        "99000004000104": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        },
+        "99000005000105": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        }
+      }
     },
     {
       "titulo": "Presencial para aposentados",
@@ -124,10 +152,41 @@
         "canal": "presencial"
       },
       "n_empresas_que_oferecem": 1,
-      "n_empresas_analisadas": 47,
+      "n_empresas_analisadas": 5,
       "cnpjs_base": [
-        "99000003000103"
-      ]
+        "99000001000101",
+        "99000002000102",
+        "99000003000103",
+        "99000004000104",
+        "99000005000105"
+      ],
+      "atendimento": {
+        "99000001000101": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        },
+        "99000002000102": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        },
+        "99000003000103": {
+          "publico": true,
+          "produto_servico": true,
+          "canal": true
+        },
+        "99000004000104": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        },
+        "99000005000105": {
+          "publico": false,
+          "produto_servico": false,
+          "canal": false
+        }
+      }
     }
   ],
   "diferencial": {
