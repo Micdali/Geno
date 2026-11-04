@@ -60,9 +60,10 @@ Lotes 2 e 3 (04/11/2026): 504 + 242 CNPJs entregues, 745 com texto útil, nenhum
 
 | Recuperação | Valor | Como |
 |---|---|---|
-| Concorrentes relevantes entre os 10 primeiros (ideias de teste) | | Falta julgamento humano das listas (8 ideias de teste no `motor/README.md`) |
+| Concorrentes relevantes entre os 10 primeiros (ideias de teste) | 51 de 71 (72%): inglês online 10/10, liderança 10/10, concurso de TI 10/10 (todos de concursos, nenhum específico de TI), espanhol 8/10, Excel 6/6, informática p/ idosos 4/10, programação 2/10, música p/ crianças 1/5 | 04/11/2026. **Julgado pelo Claude, não por uma pessoa do grupo**: relevante = oferece o serviço da ideia; casos duvidosos contaram como não relevantes. Nos nichos com poucas escolas na base, a lista se completa com outros cursos ("marcenaria" aparece em 3 listas por limite do modelo de embedding). Falta revisão humana. |
 | Escolas do mesmo nicho por ideia (serviço ≥ 0,60), de 602 com embedding | inglês online 71, liderança 66, concurso de TI 61, espanhol 30, programação 12, informática p/ idosos 10, Excel 6, música p/ crianças 5 | 04/11/2026, `gpt-6-luna` + `paraphrase-multilingual-MiniLM-L12-v2`; uma chamada de `propor_recorte` por ideia (o recorte muda um pouco a cada chamada) |
 | Escolas que passavam do corte antigo (texto ≥ 0,35) | 207 a 566 de 602 (34% a 94%) | mesmas ideias e data |
+| Concordância com o `gabarito_100_rj.csv` do Roger (não é precisão) | serviço com semelhança ≥ 0,60 em 27 de 72; canal igual em 27 de 57 onde o LLM decidiu; receita igual em 10 de 15 onde o LLM decidiu; o LLM julgou 27 das 99 fora de ensino | 04/11/2026. O arquivo é um rascunho automático por CNAE (20 empresas por CNAE, mesmo texto em todas as 20; receita sempre preenchida, mesmo quando o site não diz). Ex.: marca "aulas de dança" numa empresa de cursos sobre autismo. Por isso **não serve para medir precisão** até alguém conferir as 100 à mão. |
 | Escolas classificadas que estão no `geno.duckdb` | 602 de 602; 553 ativas (situação 02), 39 baixadas | `geno.duckdb` do Lucas recebido em 04/11/2026 |
 | Tempo de `analisar()` por ideia | 3,3 a 4,7 s (+ ~2 s do `propor_recorte`) | 04/11/2026, 8 ideias, modelo de embedding já carregado |
 

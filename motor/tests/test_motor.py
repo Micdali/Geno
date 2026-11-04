@@ -327,6 +327,7 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
                              "situacao": ["08" if i == 1 else "02" for i in range(n)],
                              "data_situacao": [pd.Timestamp("2024-05-01")] * n})
     monkeypatch.setattr(mod_analisar, "_publicos", lambda cs: publicos[publicos["cnpj"].isin(cs)])
+    monkeypatch.setattr(mod_analisar, "_ativos_setor", lambda cnaes: 98)
     monkeypatch.setattr(mod_analisar, "_saturacao", lambda cnaes: pd.DataFrame(
         {"ano": [2024, 2025], "aberturas": [10, 12], "baixas": [5, 6], "baixas_oficio": [1, 1],
          "saldo": [6, 7], "ativos_fim_ano": [100, 105]}))
@@ -338,7 +339,7 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
     assert set(r) == {"ideia", "recorte", "confianca", "concorrentes", "saturacao", "lacunas", "diferencial", "gerado_em"}
     assert set(r["recorte"]) == {"descricao", "atributos", "uf"} and r["recorte"]["uf"] == "RJ"
     assert set(r["confianca"]) == {"nivel", "n_empresas", "n_com_site_classificado", "usou_setor_amplo", "texto"}
-    assert r["confianca"]["n_empresas"] == 105 and r["confianca"]["usou_setor_amplo"] is True
+    assert r["confianca"]["n_empresas"] == 98 and r["confianca"]["usou_setor_amplo"] is True  # só ativas, não ativos_fim_ano
     assert 0 < len(r["concorrentes"]) <= config.MAX_CONCORRENTES
     c0 = r["concorrentes"][0]
     assert set(c0) == {"cnpj", "nome_exibicao", "o_que_oferece", "publico", "canal", "situacao", "ano_baixa", "semelhanca", "site"}
@@ -354,3 +355,26 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
         assert l["cnpjs_base"] and cnpjs[1] not in l["cnpjs_base"]  # baixada não conta
     assert r["diferencial"] == {"em_comum": "a", "possiveis_diferenciais": "b", "nao_verificado": "c"}
     json.dumps(r)  # serializável para o app
+
+
+def test_analisar_sem_nenhum_concorrente(monkeypatch):
+    classif = pd.DataFrame([{"cnpj": "1", "prompt_versao": "v3", "fonte": "site", "site": "a.com.br",
+                             **classificacao_falsa(produto_servico="pilates")}])
+    monkeypatch.setattr(embeddings, "vetorizar", vetorizar_falso)
+    monkeypatch.setattr(classificar, "carregar", lambda: classif)
+    monkeypatch.setattr(embeddings, "carregar", lambda: (["1"], vetorizar_falso(["pilates"])))
+    monkeypatch.setattr(embeddings, "carregar_servico", lambda: {"1": vetorizar_falso(["pilates"])[0]})
+    monkeypatch.setattr(config, "parametros_lacuna", lambda: PARAMS)
+    monkeypatch.setattr(mod_analisar, "_publicos", lambda cs: pytest.fail("não devia consultar o banco"))
+    monkeypatch.setattr(mod_analisar, "_ativos_setor", lambda cnaes: 4199)
+    monkeypatch.setattr(mod_analisar, "_saturacao", lambda cnaes: pd.DataFrame(
+        {"ano": [2025], "aberturas": [10], "baixas": [5], "baixas_oficio": [1], "saldo": [5], "ativos_fim_ano": [100]}))
+    monkeypatch.setattr(diferencial.llm, "gerar_json", lambda *a, **kw: pytest.fail("sem concorrentes não chama o LLM"))
+
+    r = mod_analisar.analisar("escola de inglês", recorte=RECORTE)
+
+    assert r["concorrentes"] == [] and r["lacunas"] == []
+    assert r["confianca"]["nivel"] == "baixa" and r["confianca"]["n_com_site_classificado"] == 0
+    assert "insuficientes" in r["confianca"]["texto"]
+    assert "Não encontramos empresas parecidas" in r["diferencial"]["em_comum"]
+    json.dumps(r)

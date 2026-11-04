@@ -69,9 +69,11 @@ Decisões do motor (provisórias, a calibrar com dado real; valores em `config.p
 - **Resultado de ponta a ponta (04/11/2026, `geno.duckdb` do Lucas, 602 escolas):** as 8 ideias de teste rodaram em 3,3 a 4,7 s cada (`analisar`, com o modelo de embedding já carregado), mais ~2 s do `propor_recorte`. Confiança alta em inglês online (71 escolas) e liderança; média em concurso de TI e espanhol; baixa em música, informática para idosos, programação e Excel. **Nenhuma ideia teve lacuna:** onde há base (inglês: 59 ativas em público × serviço), a combinação não é rara (24 atendem adultos, limite 2,95); nas outras, a base fica abaixo de 50 e a tela recebe o aviso de dados insuficientes. É o comportamento esperado da regra do Lucas com esta base, não um erro.
 - **Lacunas:** a combinação da ideia (público × serviço × canal) e seus pares. Uma empresa "atende" público ou serviço quando a semelhança do texto dela com o da ideia é ≥ 0,45; canal compara a lista fechada (híbrido atende presencial e online). Quem tem o campo "indeterminado" fica fora da conta daquela combinação. Só empresas ativas contam. Abaixo de 50 ativas analisadas: "dados insuficientes" (regra do Lucas).
 - **Saturação:** sempre do setor (CNAEs do recorte, RJ, 2021–2025, sem baixas de ofício), porque as empresas com site são quase todas ativas e enviesariam a mortalidade. Por isso `usou_setor_amplo = true`.
-- **Confiança:** alta com ≥ 50 parecidas e ≥ 70% delas com confiança do LLM alta ou média; média com ≥ 20; baixa no resto. Cai um nível se mais da metade tiver confiança baixa.
+- **Confiança:** alta com ≥ 50 parecidas e ≥ 70% delas com confiança do LLM alta ou média; média com ≥ 20; baixa no resto. Cai um nível se mais da metade tiver confiança baixa. O total do setor (`n_empresas`) conta só estabelecimentos ativos (situação 02) com o CNAE principal do recorte; antes vinha do `ativos_fim_ano`, que inclui inaptas e suspensas (em idiomas, 5.610 contra 4.199 ativas).
 
 ## Extras em relação ao contrato 4 (avisar o Christian)
+
+Já estão na [v1 do contrato 4](../contratos/04_resultado_analise.md#extras-da-v1-04112026).
 
 - `propor_recorte` devolve também `cnaes` e `perguntas`.
 - Cada lacuna traz `atendimento`: para cada CNPJ da base, se atende cada atributo (`true`, `false`, `null`). Serve para a tabela ✅/❌ da tela 6.

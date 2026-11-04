@@ -39,6 +39,22 @@ def _saturacao(cnaes: list[str]) -> pd.DataFrame:
     return consultas.saturacao(cnaes, ano_ini=ini, ano_fim=fim)
 
 
+def _ativos_setor(cnaes: list[str]) -> int:
+    """Estabelecimentos em situação ativa (02) hoje, com CNAE principal do recorte.
+
+    O `ativos_fim_ano` da saturação conta quem não foi baixado, o que inclui inaptas e suspensas
+    (em idiomas, 5.610 contra 4.199 ativas em 04/11/2026); a tela diz "ativos", então conta só a 02.
+    """
+    from dados.geno_db import consultas
+    con = consultas.conectar()
+    try:
+        return int(con.execute(
+            "SELECT count(*) FROM vw_publico WHERE situacao = '02' "
+            "AND cnae_principal IN (SELECT unnest(?::VARCHAR[]))", [list(cnaes)]).fetchall()[0][0])
+    finally:
+        con.close()
+
+
 # --- montagem ---------------------------------------------------------------------------------
 def _texto_recorte(recorte: dict) -> str:
     a = recorte["atributos"]
@@ -46,7 +62,7 @@ def _texto_recorte(recorte: dict) -> str:
                                     "publico_atendido": a.get("publico"), "canal_atendimento": a.get("canal")})
 
 
-def _bloco_saturacao(cnaes: list[str]) -> tuple[dict, int]:
+def _bloco_saturacao(cnaes: list[str]) -> dict:
     df = _saturacao(cnaes)
     voluntarias = (df["baixas"] - df["baixas_oficio"]).astype(int)
     nomes = ", ".join(f"{c} {config.CNAES_PILOTO.get(c, '')}".strip() for c in cnaes)
@@ -59,8 +75,7 @@ def _bloco_saturacao(cnaes: list[str]) -> tuple[dict, int]:
         "fonte": (f"Receita Federal — Dados Abertos do CNPJ, competência 2026-10. Estabelecimentos do "
                   f"{config.UF_PILOTO} com CNAE principal {nomes}. Baixas de ofício excluídas."),
     }
-    n_ativos = int(df["ativos_fim_ano"].iloc[-1]) if len(df) else 0
-    return bloco, n_ativos
+    return bloco
 
 
 def _concorrentes(ranking: list[tuple[str, float]], classif: pd.DataFrame, publicos: pd.DataFrame) -> list[dict]:
@@ -101,7 +116,8 @@ def analisar(ideia: str, recorte: dict | None = None) -> dict:
         recorte = nicho.propor_recorte(ideia)
     cnaes = [c for c in recorte.get("cnaes", []) if c in config.CNAES_PILOTO] or list(config.CNAES_PILOTO)
 
-    saturacao, n_setor = _bloco_saturacao(cnaes)
+    saturacao = _bloco_saturacao(cnaes)
+    n_setor = _ativos_setor(cnaes)
 
     classif = classificar.carregar()
     cnpjs, matriz = embeddings.carregar()
