@@ -1,6 +1,6 @@
 -- =====================================================================
 -- CONTRATO 1 — Schema do banco do GENO (DuckDB, arquivo único geno.duckdb)
--- Versão: v0 (rascunho) — baseado na seção 8 do relatório técnico
+-- Versão: v0.1 (03/11/2026: visões ampliadas pelo bloco de dados) — baseado na seção 8 do relatório técnico
 -- Status: AGUARDANDO APROVAÇÃO DO GRUPO
 --
 -- Quem escreve em cada tabela:
@@ -147,35 +147,50 @@ CREATE TABLE IF NOT EXISTS embedding (
 
 -- ---------------------------------------------------------------------
 -- VISÕES — a única coisa que o app lê
+--
+-- v0.1 (03/11/2026): este bloco passa a ser a ESPECIFICAÇÃO das colunas das visões.
+-- A implementação fica com o Lucas em dados/sql/02_views.sql e dados/sql/03_views_publicas.sql,
+-- aplicados DEPOIS deste arquivo, porque dependem de tabelas de dados/sql/01_schema_extra.sql
+-- (motivo_classe, simples, situacao_cadastral). Quem só lê as colunas da v0 não percebe a mudança:
+-- as colunas da v0 continuam, com o mesmo nome e na mesma ordem; as novas vêm depois.
 -- ---------------------------------------------------------------------
 
--- Eventos de abertura e baixa, base das séries de saturação
-CREATE OR REPLACE VIEW vw_eventos AS
-SELECT
-    cnpj,
-    year(data_inicio)                                            AS ano_abertura,
-    CASE WHEN situacao = '08' THEN year(data_situacao) END       AS ano_baixa,
-    situacao,
-    motivo_situacao                                              AS motivo
-FROM estabelecimento;
--- TODO (Lucas): excluir/sinalizar baixas em massa pelo motivo_situacao.
+-- vw_eventos — um estabelecimento por linha, base das séries de saturação
+--   cnpj            VARCHAR   (v0)
+--   ano_abertura    INTEGER   (v0) ano de data_inicio
+--   ano_baixa       INTEGER   (v0) ano de data_situacao quando situacao = '08'; senão NULL
+--   situacao        VARCHAR   (v0) '01' nula, '02' ativa, '03' suspensa, '04' inapta, '08' baixada
+--   motivo          VARCHAR   (v0) motivo_situacao
+--   classe_baixa    VARCHAR   (v0.1) 'voluntaria' | 'oficio' | 'outra'; NULL se não está baixada
+--                             (classe de cada motivo: dados/sql/seeds/motivo_classe.csv)
+--   baixa_em_massa  BOOLEAN   (v0.1) true quando a baixa é de ofício (inclui as baixas em massa
+--                             da Receita); false nos demais casos. Séries de mortalidade excluem.
 
--- Dados exibíveis. Esconde o nome do titular de MEI / empresário individual (LGPD).
-CREATE OR REPLACE VIEW vw_publico AS
-SELECT
-    e.cnpj,
-    COALESCE(
-        e.nome_fantasia,
-        CASE WHEN emp.opcao_mei OR emp.natureza_juridica = '2135'   -- conferir código de empresário individual
-             THEN 'Empresa individual (nome oculto)'
-             ELSE emp.razao_social END
-    )                       AS nome_exibicao,
-    e.situacao,
-    e.data_inicio,
-    e.data_situacao,
-    e.bairro,
-    m.descricao             AS municipio,
-    e.uf
-FROM estabelecimento e
-LEFT JOIN empresa   emp ON emp.cnpj_basico = e.cnpj_basico
-LEFT JOIN municipio m   ON m.codigo        = e.municipio_cod;
+-- vw_eventos_longo — um EVENTO por linha (abertura ou baixa), sem filtro de período   (v0.1)
+--   cnpj, tipo_evento ('abertura' | 'baixa'), data_evento, ano, motivo,
+--   cnae_fiscal_principal, municipio (código da Receita), identificador_matriz_filial,
+--   opcao_mei, natureza_juridica, baixa_em_massa (só nas baixas; NULL nas aberturas)
+
+-- vw_publico — dados exibíveis. ÚNICA fonte que o app pode usar para mostrar empresas (LGPD).
+--   cnpj               VARCHAR  (v0)
+--   nome_exibicao      VARCHAR  (v0) nome fantasia; senão razão social; em MEI e empresário
+--                               individual nunca o nome do titular ('Empresa individual (nome oculto)')
+--   situacao           VARCHAR  (v0)
+--   data_inicio        DATE     (v0)
+--   data_situacao      DATE     (v0)
+--   bairro             VARCHAR  (v0)
+--   municipio          VARCHAR  (v0) nome do município
+--   uf                 VARCHAR  (v0)
+--   nome_fantasia      VARCHAR  (v0.1) NULL quando contém '@' ou, em MEI/EI, repete o nome do titular
+--   razao_social       VARCHAR  (v0.1) NULL em MEI e natureza 2135 (empresário individual)
+--   cnae_principal     VARCHAR  (v0.1)
+--   cnae_descricao     VARCHAR  (v0.1)
+--   situacao_descricao VARCHAR  (v0.1)
+--   porte              VARCHAR  (v0.1)
+--   opcao_simples      VARCHAR  (v0.1) 'S' | 'N' | NULL
+--   opcao_mei          VARCHAR  (v0.1) 'S' | 'N' | NULL
+--
+-- Regras de LGPD da vw_publico (testadas em tests/test_lgpd.py):
+--   * nunca expõe e-mail, domínio de e-mail, telefone, logradouro, número, complemento, CEP nem sócios;
+--   * limite aceito pelo grupo: nome fantasia de MEI/EI com só parte do nome do titular
+--     (ex.: o primeiro nome) continua visível, para não esconder nomes comerciais legítimos.
