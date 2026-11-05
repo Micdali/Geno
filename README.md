@@ -31,20 +31,21 @@ Cada pasta é um bloco com **um dono**. Os blocos só se comunicam pelos contrat
 
 ## Como rodar
 
-> Em construção. Cada bloco documenta seus comandos no próprio README.
+Para a apresentação de 05/11/2026, o repositório traz tudo o que o app precisa para rodar igual à máquina do Micael: o `.env` com a chave da OpenAI, o banco `dados/geno.duckdb` e o cache do motor (`motor/cache/`). **A chave do `.env` é temporária: será revogada na noite de 05/11/2026.** Depois disso, crie a sua e cole no `.env`.
 
 ```bash
-# 1. Ambiente
+# 1. Ambiente (Python 3.11 ou mais novo; testado no 3.14)
 python -m venv .venv
 .venv\Scripts\activate        # Windows  (Linux/Mac: source .venv/bin/activate)
 pip install -r requirements.txt
 
-# 2. Chaves de API
-copy .env.example .env         # Linux/Mac: cp .env.example .env  — depois preencha
-
-# 3. Protótipo das telas (dados de exemplo)
-streamlit run app/prototipo/app.py
+# 2. O app (abre em http://localhost:8501)
+streamlit run app/app.py
 ```
+
+- A primeira abertura leva uns 20 segundos ("Preparando o Geno"): é o modelo de embedding carregando. Depois cada análise leva de 5 a 15 segundos.
+- O Geno só analisa ensino e treinamento no estado do Rio de Janeiro (piloto). Ideias de outro ramo recebem um aviso.
+- Testes, sem rede: `python -m pytest app motor/tests -q`.
 
 ## Dados e privacidade
 
