@@ -557,19 +557,39 @@ def tela_6():
     if not lacunas:
         st.info(T.LACUNA_NENHUMA)
         return
-    nomes = {c["cnpj"]: c["nome_exibicao"] for c in s.resultado["concorrentes"]}
+    nomes = {c["cnpj"]: c["nome_exibicao"] for c in s.resultado["concorrentes"]} | (s.resultado.get("nomes_empresas") or {})
+    da_ideia = [l for l in lacunas if l.get("origem", "ideia") == "ideia"]
+    variacoes = sorted((l for l in lacunas if l.get("origem") == "variacao"),
+                       key=lambda l: l["n_empresas_que_oferecem"] / max(1, l["n_empresas_analisadas"]))
+    if da_ideia:
+        lista_lacunas(da_ideia, nomes, primeira_em_card=True)
+    else:
+        st.info(T.LACUNA_IDEIA_COMUM)
+    if variacoes:  # variações propostas pelo LLM; quem diz que são raras é a contagem
+        divisor(T.LACUNA_VARIACOES)
+        st.caption(T.LACUNA_VARIACOES_AJUDA)
+        lista_lacunas(variacoes, nomes, primeira_em_card=False)
+
+
+def lista_lacunas(lacunas: list[dict], nomes: dict, primeira_em_card: bool):
     for i, l in enumerate(lacunas):
-        k, combinacao = l["n_empresas_que_oferecem"], l["titulo"][:1].lower() + l["titulo"][1:]
+        t = l["titulo"]
+        # minúscula no começo só quando a segunda letra também é minúscula (não estraga siglas: "IA", "TI")
+        combinacao = t[:1].lower() + t[1:] if len(t) > 1 and t[1].islower() else t
+        k = l["n_empresas_que_oferecem"]
         frase = (T.LACUNA_FRASE if k == 0 else T.LACUNA_FRASE_POUCAS).format(
             n=l["n_empresas_analisadas"], k=k, combinacao=combinacao)
         if k == 1:
             frase = frase.replace("oferecem", "oferece")
+        if l.get("base_pequena"):
+            frase += " " + T.LACUNA_BASE_PEQUENA
         if i:
             divisor()
-        if i == 0:  # o título vem do LLM: escapado porque o card é HTML
+        if i == 0 and primeira_em_card:  # o título vem do LLM: escapado porque o card é HTML
             card_lacuna(html.escape(l["titulo"]), html.escape(frase))
         else:
-            st.markdown(f"**{l['titulo']}**: {frase}")
+            st.markdown(f'<div class="geno-lacuna-linha"><b>{html.escape(l["titulo"])}</b>'
+                        f'<span>{html.escape(frase)}</span></div>', unsafe_allow_html=True)
         n_base = len(l["cnpjs_base"])
         rotulo = "Ver a empresa analisada" if n_base == 1 else T.LACUNA_VER_EMPRESAS.format(n=n_base)
         with st.expander(rotulo):

@@ -7,6 +7,7 @@ limiar_recuo ativos analisados. Cada lacuna traz os CNPJs que a embasam.
 """
 from __future__ import annotations
 
+import re
 from itertools import combinations
 
 import numpy as np
@@ -47,12 +48,15 @@ def atende_canal(canal_ideia: str, canal_empresa: str | None) -> bool | None:
 
 
 def marcar_atendimento(recorte: dict, empresas: list[dict], vetorizar,
-                       vetores: dict[str, dict[str, np.ndarray]] | None = None) -> dict[str, dict]:
+                       vetores: dict[str, dict[str, np.ndarray]] | None = None,
+                       limiar_servico: float = config.ATENDE_MIN) -> dict[str, dict]:
     """Para cada empresa, se atende cada atributo da ideia: True, False ou None (site não diz).
 
     Público e serviço são texto livre: comparados por similaridade de embeddings (>= ATENDE_MIN).
     `vetores` ({"publico": {cnpj: vetor}, "produto_servico": {...}}, do embedding.parquet) evita
     vetorizar os textos das empresas ao vivo; quem não estiver lá é vetorizado na hora.
+    `limiar_servico`: na base do mercado inteiro, "oferece o mesmo serviço" usa o corte de mesmo nicho
+    (config.SERVICO_MIN), mais exigente que o ATENDE_MIN de dentro das parecidas.
     """
     attrs = recorte["atributos"]
     vetores = vetores or {}
@@ -73,12 +77,12 @@ def marcar_atendimento(recorte: dict, empresas: list[dict], vetorizar,
     sim_serv = np.array([x @ v_serv for x in emp["produto_servico"]]) if n else []
     marcas = {}
     for i, e in enumerate(empresas):
-        def julgar(campo, sim):
+        def julgar(campo, sim, limiar=config.ATENDE_MIN):
             valor = (e.get(campo) or "").strip()
-            return None if valor in ("", "indeterminado") else bool(sim >= config.ATENDE_MIN)
+            return None if valor in ("", "indeterminado") else bool(sim >= limiar)
         marcas[e["cnpj"]] = {
             "publico": julgar("publico_atendido", sim_pub[i]),
-            "produto_servico": julgar("produto_servico", sim_serv[i]),
+            "produto_servico": julgar("produto_servico", sim_serv[i], limiar_servico),
             "canal": atende_canal(attrs["canal"], e.get("canal_atendimento")),
         }
     return marcas
@@ -90,13 +94,21 @@ def _titulo(attrs: dict, combo: tuple[str, ...]) -> str:
     return t[:1].upper() + t[1:]
 
 
-def calcular(recorte: dict, marcas: dict[str, dict], ativos: set[str], params: dict | None = None) -> tuple[list[dict], str | None]:
+_VAGO = re.compile(r"n[aã]o (especificad|informad|definid)|indetermin|^geral$|^qualquer|^todos?$", re.I)
+SOZINHOS = ("produto_servico", "publico")  # atributos que valem como lacuna sozinhos (canal sozinho não diz nada)
+
+
+def calcular(recorte: dict, marcas: dict[str, dict], ativos: set[str], params: dict | None = None,
+             origem: str = "ideia", titulo: str | None = None, so_completa: bool = False) -> tuple[list[dict], str | None]:
     """Lacunas da ideia, a mais forte primeiro.
 
     Args:
-        marcas: saída de marcar_atendimento, na ordem de semelhança.
+        marcas: saída de marcar_atendimento sobre a base (todas as escolas ativas com site do recorte).
         ativos: CNPJs em situação ativa (só elas contam como "oferecem hoje").
-        params: max_abs, max_pct, minimo_nicho (padrão: dados/config.yaml).
+        params: max_abs, max_pct, minimo_nicho (padrão: config.parametros_lacuna()).
+        origem: "ideia" ou "variacao" (variação proposta pelo LLM, ver motor/variacoes.py).
+        titulo: título fixo (o da variação); sem ele, o título sai dos atributos.
+        so_completa: só a combinação com todos os atributos (usado nas variações).
 
     Returns:
         (lacunas no formato do contrato 4, aviso ou None). O aviso explica quando não há dado
@@ -104,28 +116,35 @@ def calcular(recorte: dict, marcas: dict[str, dict], ativos: set[str], params: d
     """
     p = params or config.parametros_lacuna()
     attrs = {a: recorte["atributos"][a] for a in ATRIBUTOS}
-    usados = [a for a in ATRIBUTOS if attrs[a] and attrs[a] != "indeterminado"]
+    # "público não especificado" não é um público: fica de fora como "indeterminado"
+    usados = [a for a in ATRIBUTOS if attrs[a] and not _VAGO.search(str(attrs[a]).strip())]
     combos = [c for k in range(len(usados), 1, -1) for c in combinations(usados, k)]
+    combos += [(a,) for a in usados if a in SOZINHOS]
+    minimo = p.get("minimo_lacuna", p["minimo_nicho"])
+    if so_completa:
+        combos = combos[:1] if usados else []
     lacunas, maior_base = [], 0
     for combo in combos:
         base = [c for c, m in marcas.items() if c in ativos and all(m[a] is not None for a in combo)]
         maior_base = max(maior_base, len(base))
-        if len(base) < p["minimo_nicho"]:
+        if len(base) < minimo:
             continue
         oferecem = [c for c in base if all(marcas[c][a] for a in combo)]
         limite = max(p["max_abs"], p["max_pct"] * len(base))
         if len(oferecem) <= limite:
             lacunas.append({
-                "titulo": _titulo(attrs, combo),
+                "titulo": titulo or _titulo(attrs, combo),
+                "origem": origem,
                 "atributos": {a: attrs[a] for a in combo},
                 "n_empresas_que_oferecem": len(oferecem),
                 "n_empresas_analisadas": len(base),
+                "base_pequena": len(base) < p["minimo_nicho"],  # aponta, mas avisa na tela
                 "cnpjs_base": base,
                 "atendimento": {c: {a: marcas[c][a] for a in combo} for c in base},
             })
     lacunas.sort(key=lambda l: (l["n_empresas_que_oferecem"] / l["n_empresas_analisadas"], -len(l["atributos"])))
     aviso = None
-    if maior_base < p["minimo_nicho"]:
-        aviso = (f"Dados insuficientes para apontar lacunas: só {maior_base} empresas ativas parecidas têm "
-                 f"site com essas informações (mínimo {p['minimo_nicho']}).")
+    if maior_base < minimo:
+        aviso = (f"Dados insuficientes para apontar lacunas: só {maior_base} escolas ativas do setor têm "
+                 f"site com essas informações (mínimo {minimo}).")
     return lacunas, aviso

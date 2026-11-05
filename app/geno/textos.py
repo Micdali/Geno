@@ -156,10 +156,20 @@ class T:
     # ------------------------------------------------------------------
     LACUNA_TITULO = "O que ninguém está atendendo"
     LACUNA_FRASE = (
-        "Das {n} empresas analisadas, nenhuma oferece {combinacao}."
+        "Das {n} escolas ativas com site neste ramo, nenhuma oferece {combinacao}."
     )
     LACUNA_FRASE_POUCAS = (
-        "Das {n} empresas analisadas, só {k} oferecem {combinacao}."
+        "Das {n} escolas ativas com site neste ramo, só {k} oferecem {combinacao}."
+    )
+    LACUNA_BASE_PEQUENA = "Base pequena: confira as empresas antes de tirar conclusões."
+    LACUNA_IDEIA_COMUM = (
+        "A combinação da sua ideia já é oferecida por mais de 10% das escolas deste ramo. "
+        "Veja abaixo variações próximas com pouca oferta."
+    )
+    LACUNA_VARIACOES = "Variações da sua ideia com pouca oferta"
+    LACUNA_VARIACOES_AJUDA = (
+        "Mudamos um ou dois aspectos da sua ideia (público, formato ou canal) e contamos quantas escolas "
+        "já oferecem cada variação. Pouca oferta não quer dizer que há procura."
     )
     LACUNA_NENHUMA = (
         "Não encontramos uma combinação que quase ninguém ofereça neste "

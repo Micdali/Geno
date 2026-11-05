@@ -202,6 +202,11 @@ iframe[title="st.iframe"], [data-testid="stIFrame"] {{ background: transparent; 
 }}
 .geno-lacuna h3 {{ margin: 0 0 .5rem 0; color: {CORES["coral"]} !important; }}
 
+/* Lacunas que não vão em card: título e frase numa linha com marcador coral */
+.geno-lacuna-linha {{ border-left: 3px solid {CORES["coral"]}; padding: .2rem 0 .2rem 1rem; margin: .2rem 0 .6rem; }}
+.geno-lacuna-linha b {{ display: block; font-family: 'Fraunces', Georgia, serif; font-size: 1.3rem; color: {CORES["creme"]}; }}
+.geno-lacuna-linha span {{ font-size: 1.05rem; color: rgba(250,243,231,.8); }}
+
 /* Indicador de confiança */
 .geno-confianca {{
     border-radius: 0 14px 14px 0; padding: 1rem 1.3rem; border-left: 4px solid;

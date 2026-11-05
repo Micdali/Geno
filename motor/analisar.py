@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from . import classificar, confianca, config, diferencial, embeddings, lacunas, nicho
+from . import classificar, confianca, config, diferencial, embeddings, lacunas, nicho, variacoes
 
 EXEMPLO = Path(__file__).resolve().parent.parent / "contratos" / "exemplos" / "resultado_analise.exemplo.json"
 SITUACAO = {"02": "ativa", "08": "baixada", "03": "suspensa", "04": "inapta", "01": "nula"}
@@ -288,6 +289,8 @@ def analisar(ideia: str, recorte: dict | None = None, progresso=None) -> dict:
         recorte = nicho.propor_recorte(ideia)
     cnaes = [c for c in recorte.get("cnaes", []) if c in config.CNAES_PILOTO] or list(config.CNAES_PILOTO)
 
+    # As variações só dependem da ideia e do recorte: o LLM trabalha enquanto o motor consulta o banco
+    futuro_variacoes = ThreadPoolExecutor(1).submit(variacoes.propor, ideia, recorte)
     avisar("Contando aberturas e baixas no setor")
     saturacao = _bloco_saturacao(cnaes)
     n_setor = _ativos_setor(cnaes)
@@ -315,14 +318,30 @@ def analisar(ideia: str, recorte: dict | None = None, progresso=None) -> dict:
     ativos = set(publicos.loc[publicos["situacao"] == "02", "cnpj"])
 
     parecidas = classif.set_index("cnpj").loc[[c for c, _ in ranking]].reset_index().to_dict("records")
+
+    # Lacunas: medidas contra o mercado inteiro do recorte (todas as escolas com site dos CNAEs da ideia),
+    # não só contra as parecidas. Só as parecidas não acham nada: se a ideia é rara, há poucas delas
+    # (dados insuficientes); se é comum, todas oferecem o mesmo.
+    avisar("Procurando o que ninguém atende")
+    mercado = _publicos([c for c in cnpjs if c in set(classif["cnpj"])])
+    mercado = mercado[mercado["cnae_principal"].isin(cnaes)] if "cnae_principal" in mercado else mercado
+    ativos_mercado = set(mercado.loc[mercado["situacao"] == "02", "cnpj"])
+    empresas = classif.set_index("cnpj").loc[list(mercado["cnpj"])].reset_index().to_dict("records")
     try:
         vetores_publico = embeddings.carregar_atributo("publico")
     except RuntimeError:  # parquet de antes de 04/11/2026: o público é vetorizado na hora
         vetores_publico = {}
-    marcas = lacunas.marcar_atendimento(recorte, parecidas, vetorizar, vetores={
-        "publico": vetores_publico, "produto_servico": embeddings.carregar_servico()})
-    avisar("Procurando o que ninguém atende")
-    lista_lacunas, aviso = lacunas.calcular(recorte, marcas, ativos)
+    vetores = {"publico": vetores_publico, "produto_servico": embeddings.carregar_servico()}
+    marcas = lacunas.marcar_atendimento(recorte, empresas, vetorizar, vetores=vetores,
+                                        limiar_servico=config.SERVICO_MIN)
+    lista_lacunas, aviso = lacunas.calcular(recorte, marcas, ativos_mercado)
+
+    avisar("Testando variações da sua ideia")
+    for v in futuro_variacoes.result():
+        marcas_v = lacunas.marcar_atendimento(v, empresas, vetorizar, vetores=vetores,
+                                              limiar_servico=config.SERVICO_MIN)
+        lista_lacunas += lacunas.calcular(v, marcas_v, ativos_mercado, origem="variacao", titulo=v["titulo"],
+                                          so_completa=True)[0]
     concorrentes = _concorrentes(ranking, classif, publicos)
     avisar("Escrevendo o que é comum e o que pode diferenciar")
     texto_diferencial = diferencial.gerar(ideia, recorte, concorrentes, lista_lacunas)
@@ -337,6 +356,8 @@ def analisar(ideia: str, recorte: dict | None = None, progresso=None) -> dict:
         "saturacao": saturacao,
         "lacunas": lista_lacunas,
         "diferencial": texto_diferencial,
+        # nome de cada escola da base das lacunas (vw_publico: nunca nome de titular de MEI), para a tela 6
+        "nomes_empresas": dict(zip(mercado["cnpj"], mercado["nome_exibicao"])) if len(mercado) else {},
         "gerado_em": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
     }
 

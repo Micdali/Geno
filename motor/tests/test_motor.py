@@ -363,7 +363,8 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
     assert r["saturacao"]["interpretacao"]["titulo"] and len(r["saturacao"]["interpretacao"]["paragrafos"]) == 4
     assert r["saturacao"]["comparativo"] == list(COMPARATIVO) and r["saturacao"]["porte"] == CONTEXTO["porte"]
 
-    assert set(r) == {"ideia", "recorte", "confianca", "concorrentes", "saturacao", "lacunas", "diferencial", "gerado_em"}
+    assert set(r) == {"ideia", "recorte", "confianca", "concorrentes", "saturacao", "lacunas", "diferencial", "gerado_em",
+                      "nomes_empresas"}
     assert set(r["recorte"]) == {"descricao", "atributos", "uf"} and r["recorte"]["uf"] == "RJ"
     assert set(r["confianca"]) == {"nivel", "n_empresas", "n_com_site_classificado", "usou_setor_amplo", "texto"}
     assert r["confianca"]["n_empresas"] == 98 and r["confianca"]["usou_setor_amplo"] is True  # só ativas, não ativos_fim_ano
@@ -394,7 +395,10 @@ def test_analisar_sem_nenhum_concorrente(monkeypatch):
     monkeypatch.setattr(embeddings, "carregar_servico", lambda: {"1": vetorizar_falso(["pilates"])[0]})
     monkeypatch.setattr(embeddings, "carregar_atributo", lambda s: {})
     monkeypatch.setattr(config, "parametros_lacuna", lambda: PARAMS)
-    monkeypatch.setattr(mod_analisar, "_publicos", lambda cs: pytest.fail("não devia consultar o banco"))
+    monkeypatch.setattr(mod_analisar, "_publicos", lambda cs: pd.DataFrame(  # o mercado do recorte, para as lacunas
+        {"cnpj": ["1"], "nome_exibicao": ["Pilates"], "situacao": ["02"], "data_situacao": [None],
+         "cnae_principal": ["8593700"]}))
+    monkeypatch.setattr(mod_analisar.variacoes, "propor", lambda ideia, recorte: [])
     monkeypatch.setattr(mod_analisar, "_ativos_setor", lambda cnaes: 4199)
     monkeypatch.setattr(mod_analisar, "_comparativo_nichos", lambda: COMPARATIVO)
     monkeypatch.setattr(mod_analisar, "_contexto_setor", lambda cnaes: CONTEXTO)
@@ -408,7 +412,7 @@ def test_analisar_sem_nenhum_concorrente(monkeypatch):
     assert r["confianca"]["nivel"] == "baixa" and r["confianca"]["n_com_site_classificado"] == 0
     assert "insuficientes" in r["confianca"]["texto"]
     assert "Não encontramos empresas parecidas" in r["diferencial"]["em_comum"]
-    assert chamadas == [3]  # os 3 textos da ideia, numa chamada só, antes de abrir o banco
+    assert chamadas[0] == 3  # os 3 textos da ideia, numa chamada só, antes de abrir o banco
     json.dumps(r)
 
 
@@ -518,3 +522,36 @@ def test_ideia_fora_do_piloto_sem_perguntas(monkeypatch):
     r = nicho.propor_recorte("escola", gerar=lambda *a, **kw: ({"descricao": "x", "atributos": RECORTE["atributos"],
                                                                "cnaes": [], "perguntas": []}, "m"))
     assert r["no_piloto"] is True  # sem o campo, conta como ensino
+
+
+def test_lacuna_so_do_servico_e_regra_de_10_por_cento():
+    marcas = {f"{i:014d}": {"publico": True, "produto_servico": i < 5, "canal": True} for i in range(60)}
+    lac, aviso = lacunas.calcular(RECORTE, marcas, set(marcas), PARAMS | {"max_pct": 0.10})
+    so_servico = [l for l in lac if list(l["atributos"]) == ["produto_servico"]]
+    assert aviso is None and len(so_servico) == 1  # 5 de 60 (8%) oferecem o serviço: abaixo de 10%
+    assert so_servico[0]["n_empresas_que_oferecem"] == 5 and so_servico[0]["origem"] == "ideia"
+    assert not any(list(l["atributos"]) == ["canal"] for l in lac)  # canal sozinho não vira lacuna
+
+
+def test_variacao_conta_so_a_combinacao_completa():
+    v = {"titulo": "Inglês para idosos", "atributos": {"publico": "idosos", "produto_servico": "aulas de inglês",
+                                                         "canal": "indeterminado"}}
+    marcas = {f"{i:014d}": {"publico": i < 2, "produto_servico": True, "canal": None} for i in range(60)}
+    lac, _ = lacunas.calcular(v, marcas, set(marcas), PARAMS, origem="variacao", titulo=v["titulo"], so_completa=True)
+    assert len(lac) == 1 and lac[0]["titulo"] == "Inglês para idosos" and lac[0]["origem"] == "variacao"
+    assert set(lac[0]["atributos"]) == {"publico", "produto_servico"} and lac[0]["n_empresas_que_oferecem"] == 2
+
+
+def test_variacoes_propor():
+    from motor import variacoes
+    gerar = lambda *a, **kw: ({"variacoes": [  # noqa: E731
+        {"titulo": "Inglês para idosos", "publico": "idosos", "produto_servico": "aulas de inglês", "canal": "presencial"},
+        {"titulo": "", "publico": "x", "produto_servico": "y", "canal": "online"},
+        {"titulo": "Mentoria", "publico": "", "produto_servico": "mentoria de fala", "canal": "voador"}]}, "m")
+    v = variacoes.propor("escola de inglês", RECORTE, gerar=gerar)
+    assert [x["titulo"] for x in v] == ["Inglês para idosos", "Mentoria"]
+    assert v[1]["atributos"] == {"publico": "indeterminado", "produto_servico": "mentoria de fala", "canal": "indeterminado"}
+
+    def falha(*a, **kw):
+        raise variacoes.llm.LLMIndisponivel("fora")
+    assert variacoes.propor("escola", RECORTE, gerar=falha) == []

@@ -79,11 +79,19 @@ def _config_dados() -> dict:
         return yaml.safe_load(f)["consultas"]
 
 
+# Lacuna = no máximo 10% da base oferece (decisão do Micael em 04/11/2026; o config.yaml do Lucas diz 5%).
+# Com a base no mercado inteiro do recorte, 5% quase nunca aparecia.
+LACUNA_MAX_PCT = 0.10
+# Base mínima para apontar uma lacuna (decisão do Micael em 04/11/2026). O limiar_recuo do Lucas (50)
+# continua valendo para a confiança e para marcar a lacuna como "base pequena".
+LACUNA_MIN_BASE = 20
+
+
 def parametros_lacuna() -> dict:
-    """lacuna_max_abs, lacuna_max_pct e limiar_recuo, do dados/config.yaml."""
+    """lacuna_max_abs e limiar_recuo do dados/config.yaml; max_pct é LACUNA_MAX_PCT."""
     c = _config_dados()
-    return {"max_abs": int(c["lacuna_max_abs"]), "max_pct": float(c["lacuna_max_pct"]),
-            "minimo_nicho": int(c["limiar_recuo"])}
+    return {"max_abs": int(c["lacuna_max_abs"]), "max_pct": LACUNA_MAX_PCT,
+            "minimo_nicho": int(c["limiar_recuo"]), "minimo_lacuna": LACUNA_MIN_BASE}
 
 
 def periodo() -> tuple[int, int]:

@@ -8,7 +8,12 @@
 """
 from __future__ import annotations
 
+import re
+
 from . import config, embeddings, llm
+
+# Pedaços que não dizem nada na descrição do recorte ("indeterminado", "público não especificado")
+_VAGO = re.compile(r"indetermin|n[aã]o (especificad|informad|definid)", re.I)
 
 PROMPT_VERSAO = "v3"  # v2: perguntas de múltipla escolha e sem "Outro"; v3: no_piloto (ideia fora do ensino)
 MAX_PERGUNTAS = 3
@@ -65,7 +70,7 @@ def propor_recorte(ideia: str, respostas: dict[str, str] | None = None, gerar=No
     r["uf"] = config.UF_PILOTO
     # "Ensino de música · aulas · crianças · indeterminado": o pedaço "indeterminado" não vai para a tela
     partes = [p.strip() for p in (r.get("descricao") or "").split("·")]
-    r["descricao"] = " · ".join(p for p in partes if p and p.lower() != "indeterminado")
+    r["descricao"] = " · ".join(p for p in partes if p and not _VAGO.search(p))
     r["cnaes"] = [c for c in r.get("cnaes", []) if c in config.CNAES_PILOTO] or list(config.CNAES_PILOTO)
     perguntas = [] if respostas and len(respostas) >= MAX_PERGUNTAS else r.get("perguntas", [])[:MAX_PERGUNTAS]
     for p in perguntas:  # "Outro" é da tela, com texto livre; o LLM às vezes o inclui mesmo assim
