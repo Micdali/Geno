@@ -1,0 +1,5 @@
+# Saídas locais do enriquecimento (fora do Git)
+cache/
+__pycache__/
+METRICAS.md
+*.duckdb
