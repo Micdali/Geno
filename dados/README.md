@@ -1,77 +1,94 @@
-# dados/ — Camada 1: identidade (dono: Lucas)
-
-Transforma os Dados Abertos do CNPJ da Receita no banco `geno.duckdb` do setor piloto.
+# dados/ — Banco de dados do GENO (camada 1: identidade)
 
 > **Quem não é do bloco de dados:** comece por [`PARA_O_GRUPO.md`](PARA_O_GRUPO.md), com o que cada pessoa precisa saber, as decisões pendentes e onde está cada coisa.
 
-**Objetivo até 05/11:** banco reproduzível por script (qualquer pessoa recria do zero), com as visões e as consultas que o app usa. A tela de saturação depende só deste bloco: é o plano B do projeto.
+## Objetivo
 
-## Entrega para os outros blocos
+Transformar os Dados Abertos do CNPJ da Receita Federal em um banco reproduzível, `geno.duckdb`, do **setor piloto** (educação livre, RJ), com as views que o app lê, as consultas de saturação e mortalidade e os números oficiais do recorte para o artigo. Qualquer pessoa recria tudo do zero com um comando. A tela de saturação depende só deste bloco: é o plano B do projeto.
 
-- `geno.duckdb` no schema de [`contratos/01_schema.sql`](../contratos/01_schema.sql)
-- `parquet/candidatos.parquet` para o Roger ([contrato 2](../contratos/02_candidatos.md))
-- As funções em `consultas.py`, usadas pelo motor
+## Pré-requisitos
 
-## Pastas locais (fora do Git)
+| Item | Valor |
+|---|---|
+| Python | 3.11 ou mais novo (o relatório técnico pede 3.11+; os números oficiais foram gerados e testados em **3.13.14**) |
+| Bibliotecas | só as de [`requirements-dados.txt`](requirements-dados.txt), com versões fixas: duckdb 2.0.0, pandas 3.1.0, numpy 2.5.4, pyarrow 26.0.0, requests 2.34.2, PyYAML 6.0.3, tqdm 4.70.1 e pytest 9.2.0 |
+| Disco livre | ≈ **17 GB** no pico (ZIP de 2,3 GB + CSV de 7,3 GB do maior arquivo, mais o CSV convertido para UTF-8 em alguns arquivos). No final ficam ≈ 85 MB de banco e ≈ 40 MB de Parquet; os ZIPs são apagados |
+| Rede | ≈ 7,1 GB de download da Receita (o servidor é lento e cai; o download retoma sozinho) |
+| Git | opcional; o `METRICAS.md` registra o commit atual |
 
-- `raw/` — ZIPs baixados da Receita (apagados depois de processar)
-- `parquet/` — recorte filtrado, identificado pela competência (o snapshot do MVP)
-
-## Como recriar o banco
-
-Todos os parâmetros (UF, CNAEs, competência, caminhos) ficam em [`config.yaml`](config.yaml). A origem dos dados, o layout conferido e as divergências estão em [`FONTE.md`](FONTE.md).
-
-### Etapa 1 — baixar (pronta)
+## Recriar o banco do zero: um comando
 
 ```bash
-python -m dados.etl.baixar --listar     # o que há no servidor, sem baixar
-python -m dados.etl.baixar              # baixa tudo do config.yaml (≈ 7,1 GB, uns 20 min a ~5 MB/s)
-python -m dados.etl.baixar --arquivo Simples   # só um arquivo
+python -m venv .venv
+.venv\Scripts\activate                       # Linux/Mac: source .venv/bin/activate
+pip install -r dados/requirements-dados.txt
+python -m dados.etl.recriar
 ```
 
-- Retoma de onde parou se a conexão cair ou se você interromper (Ctrl+C); rodar de novo pula o que já está completo.
-- Os ZIPs vão para `dados/raw/` (fora do Git). Sócios nunca é baixado.
-- Precisa de ≈ 7,1 GB livres para os ZIPs, mais ≈ 7,3 GB na hora de extrair o maior CSV (Estabelecimentos0).
+`recriar` baixa, filtra, gera o `candidatos.parquet`, monta o `geno.duckdb`, regenera as métricas e imprime o tempo de cada etapa. Para reaproveitar os Parquet que já existem em `dados/parquet/` (sem baixar nada): `python -m dados.etl.recriar --sem-download`.
 
-### Etapa 2 — filtrar e gerar Parquet
+| Etapa | Tempo estimado |
+|---|---|
+| Criar o venv e instalar as dependências | ≈ 2 min (medido) |
+| Download dos ZIPs (≈ 7,1 GB, ≈ 5 MB/s) | ≈ 20 min |
+| Filtro: Estabelecimentos, Empresas, Simples e domínios (por ZIP, um de cada vez) | ≈ 25 min |
+| `candidatos.parquet` | segundos |
+| `geno.duckdb`, views e métricas | ≈ 20 s (16 s medidos) |
+
+Conferir o resultado: `python -m pytest tests -v`.
+
+> Verificado em 03/11/2026 num clone limpo, com venv novo e só o `requirements-dados.txt`: `recriar --sem-download` (reaproveitando os Parquet) refez o `candidatos.parquet`, o banco e as métricas, e os 32 testes passaram. O `METRICAS.md` e o `metricas.json` saíram idênticos aos originais (só mudam a data de geração e o hash do commit). O download completo da Receita não foi refeito nessa verificação; ele roda pelo mesmo `filtrar --baixar` já exercitado na carga original.
+
+## Etapa por etapa (se quiser rodar separado)
 
 ```bash
-python -m dados.etl.filtrar --baixar    # para cada ZIP: baixa (se faltar) -> filtra -> valida -> apaga o ZIP
-python -m dados.etl.candidatos          # gera parquet/candidatos.parquet (contrato 2)
-python -m dados.etl.validar             # contagens, cobertura de e-mail, rejeitados, tamanho
+python -m dados.etl.baixar --listar            # o que há no servidor, sem baixar
+python -m dados.etl.filtrar --baixar           # para cada ZIP: baixa -> filtra -> valida -> apaga o ZIP
+python -m dados.etl.candidatos                 # parquet/candidatos.parquet (contrato 2)
+python -m dados.etl.construir_db               # geno.duckdb, views e, no fim, METRICAS.md e metricas.json
+python -m dados.etl.validar                    # contagens do recorte, cobertura de e-mail, rejeitados
+python -m dados.etl.decidir_parametros         # reaplica as regras de decisão (período, limiar, lacuna)
+python -m dados.geno_db.gerar_exemplos         # regenera geno_db/EXEMPLOS.md
 ```
 
-Ordem interna do `filtrar`: Estabelecimentos (UF e CNAE principal ou secundário) → Empresas e Simples (só as raízes de CNPJ do recorte) → tabelas de domínio. Opções: `--etapa estabelecimentos|empresas|simples|dominio`, `--refazer` (reprocessa mesmo com Parquet pronto), `--manter-zip`.
+- **Download** (`baixar.py`): retoma por `Range`, tenta de novo com espera crescente, pula o que já está completo e **nunca baixa Sócios**.
+- **Filtro** (`filtrar.py`): UF e CNAE principal ou secundário (sem filtro de data); lê o CSV Latin-1 com DuckDB e só apaga o ZIP depois de validar o Parquet e de **conferir os registros lidos contra uma contagem independente do CSV** (nada some em silêncio). Resultado por arquivo em `etl_log.csv`.
+- A origem dos dados, o layout conferido e as armadilhas dos CSVs da Receita estão em [`FONTE.md`](FONTE.md).
 
-O que o filtro garante:
+## Estrutura de pastas
 
-- **Nada some em silêncio.** Antes de apagar o ZIP, ele compara os registros lidos pelo DuckDB com uma contagem independente do CSV (linhas físicas menos as quebras de linha dentro de campos entre aspas) e para se divergir. Resultado por arquivo em `dados/etl_log.csv`; exemplos de linhas malformadas, se houver, em `dados/etl_rejeitados.csv`.
-- **Privacidade.** Telefones e fax são descartados na leitura; do e-mail fica só `dominio_email` (NULL para provedores genéricos, lista no `config.yaml`). Sócios nunca é baixado.
-- **Sem filtro de data.** O recorte temporal é feito depois, nas views.
-- O Parquet só substitui o anterior depois de validado, e o ZIP só é apagado depois disso.
-
-Armadilhas já encontradas nos CSVs da Receita (detalhes no `FONTE.md`): aspas duplicadas dentro de campos (`"NIGTH CLUB ""TUTU"" LTDA"`), quebra de linha dentro de campo e alguns bytes de controle que o DuckDB recusa como Latin-1 (nesse caso o arquivo é convertido para UTF-8 em streaming).
-
-**Tempo e disco (competência 2026-10, máquina do Lucas):** ≈ 7,1 GB de download (uns 20 min a ~5 MB/s) e ≈ 25 min de processamento. O pico de disco é o ZIP mais o CSV do maior arquivo (≈ 10 GB; com a conversão para UTF-8, que ocorre em alguns arquivos, até ≈ 17 GB). A saída final em `dados/parquet/` ocupa ≈ 34 MB.
-
-### Etapa 3 — montar o banco
-
-```bash
-python -m dados.etl.construir_db        # gera dados/geno.duckdb (≈ 85 MB, segundos)
-python -m pytest tests -v               # testes de LGPD sobre o banco gerado
+```
+dados/
+├── config.yaml              parâmetros: fonte, competência, UF, CNAEs, período, limiares, caminhos, colunas
+├── requirements-dados.txt   dependências com versões fixas
+├── PARA_O_GRUPO.md          o que cada colega precisa saber
+├── FONTE.md                 fonte, layout, divergências e armadilhas
+├── METRICAS.md, metricas.json   números oficiais do recorte (gerados do banco; não editar à mão)
+├── decisoes/DECISOES.md     decisões por regra, com os números que as sustentam
+├── etl/                     baixar, filtrar, candidatos, construir_db, validar, decidir_parametros, gerar_metricas, recriar
+├── sql/                     01_schema_extra.sql, 02_views.sql, 03_views_publicas.sql e seeds/motivo_classe.csv
+├── geno_db/                 consultas.py, EXEMPLOS.md e gerar_exemplos.py (consultas para o app e o motor)
+├── consultas.py             funções do contrato com o motor (assinaturas antigas)
+├── raw/  parquet/           ZIPs temporários e saída do ETL (fora do Git)
+└── geno.duckdb              banco final (fora do Git)
+tests/                       test_lgpd.py, test_consultas.py, test_metricas.py, test_limiar.py
 ```
 
-Aplica, nesta ordem: `contratos/01_schema.sql`, [`sql/01_schema_extra.sql`](sql/01_schema_extra.sql) (tabelas `simples`, `pais`, `qualificacao` e `situacao_cadastral`, que o contrato não traz), [`sql/02_views.sql`](sql/02_views.sql) e [`sql/03_views_publicas.sql`](sql/03_views_publicas.sql). Carrega a camada 1 (datas e valores já convertidos, CNPJ como texto) e preenche `motivo_tipo` a partir do `config.yaml`. Confere as contagens contra os Parquet e só então troca o banco anterior. As camadas 2 a 4 ficam criadas e vazias (Roger e Micael preenchem).
+## Parâmetros e decisões
 
-Views (mudanças em relação ao contrato, a conferir pelo grupo):
+Todos os parâmetros ficam em [`config.yaml`](config.yaml); nada é fixo no código. O que foi decidido por regra (período 2021 a 2025, `limiar_recuo` 50, regra de lacuna), com a regra e os números de cada decisão, está em [`decisoes/DECISOES.md`](decisoes/DECISOES.md). Para rever uma decisão, altere o `config.yaml` e rode `python -m dados.etl.construir_db`: as consultas e as métricas usam os novos valores.
 
-- **`vw_eventos`** (`02_views.sql`) mantém as colunas do contrato e acrescenta `classe_baixa` e `baixa_em_massa`. A classe de cada motivo de baixa vem do seed versionado [`sql/seeds/motivo_classe.csv`](sql/seeds/motivo_classe.csv) (63 motivos, com justificativa): `voluntaria` (91,7% das baixas), `oficio` (6,9%: atos da Receita, inclusive as 3 baixas em massa de 31/12/2008, 09/02/2015 e 01/02/2018) e `outra` (1,4%: óbito de MEI, falência, reorganizações). `baixa_em_massa` é `classe = 'oficio'`. O `construir_db` falha se o seed não cobrir exatamente a tabela `motivo`.
-- **`vw_eventos_longo`** (`03_views_publicas.sql`): um evento por linha (abertura ou baixa), por estabelecimento. Colunas: `cnpj`, `tipo_evento`, `data_evento`, `ano`, `motivo`, `cnae_fiscal_principal`, `municipio` (código da Receita), `identificador_matriz_filial`, `opcao_mei`, `natureza_juridica`. Sem filtro de período.
-- **`vw_publico`** (`03_views_publicas.sql`) é a única fonte que o app pode consultar. Mantém as colunas do contrato e acrescenta nome fantasia, razão social, CNAE e descrição, situação e descrição, porte e opções do Simples e do MEI. Regras de LGPD: `razao_social` é NULL em MEI e natureza 2135 (empresário individual); o nome fantasia some quando, em MEI/empresário individual, repete o nome do titular (com ou sem CPF) e em qualquer empresa quando contém `@`. Limite aceito: nomes parciais do titular (ex.: só o primeiro nome) continuam visíveis. Não expõe e-mail, telefone, endereço detalhado nem sócios.
+## O que o banco tem
 
-Testes (`tests/test_lgpd.py`, precisam do banco já gerado): conferem que MEI e natureza 2135 não têm razão social, que a view não traz colunas de contato ou endereço detalhado nem valores com cara de e-mail, e que o banco não tem sócios, telefone nem e-mail completo.
+Segue o [contrato 1](../contratos/01_schema.sql), mais as tabelas de [`sql/01_schema_extra.sql`](sql/01_schema_extra.sql).
 
-Consultas para o app e o motor, em [`geno_db/consultas.py`](geno_db/consultas.py) (guia e exemplos com saídas reais em [`geno_db/EXEMPLOS.md`](geno_db/EXEMPLOS.md)):
+- **Grão:** o **estabelecimento** (matriz ou filial, chave `cnpj` de 14 posições, texto); a `empresa` (raiz de 8 posições) guarda razão social, natureza jurídica, porte e capital social. O município é o código da **Receita**, não o do IBGE.
+- **Tabelas:** `estabelecimento`, `empresa`, `simples` (Simples e MEI), domínios (`cnae`, `municipio`, `motivo`, `natureza`, `pais`, `qualificacao`, `situacao_cadastral`), `motivo_classe` e as das camadas 2 a 4 (`candidato_dominio`, `pagina`, `classificacao`, `gabarito`, `embedding`), que ficam **vazias** e são preenchidas por Roger e Micael.
+- **Views:** `vw_eventos` (aberturas e baixas por estabelecimento, com `classe_baixa` e `baixa_em_massa`), `vw_eventos_longo` (um evento por linha) e `vw_publico`, a **única** fonte que o app pode consultar.
+- **Baixas de ofício:** a classe de cada um dos 63 motivos está em [`sql/seeds/motivo_classe.csv`](sql/seeds/motivo_classe.csv): `voluntaria`, `oficio` (atos da Receita, inclusive as baixas em massa de 31/12/2008, 09/02/2015 e 01/02/2018) e `outra`. `baixa_em_massa` é `classe = 'oficio'`.
+- O `construir_db` **apaga e recria** o banco: o que alguém tiver gravado nas tabelas das camadas 2 a 4 se perde.
+
+## Consultas
 
 ```python
 from dados.geno_db import consultas
@@ -79,16 +96,20 @@ consultas.saturacao(["8593700"])                        # ano, aberturas, baixas
 consultas.mortalidade_setor(["8593700"], horizonte=2)   # coortes + recuo de CNAE (subclasse -> classe -> grupo)
 ```
 
-Período padrão (2021 a 2025, só anos completos) e limiar de recuo (30 estabelecimentos) estão em `config.yaml`, seção `consultas`, e são provisórios. As consultas são parametrizadas e abrem o banco só para leitura; o caminho vem do `config.yaml` (relativo à raiz do repositório) ou da variável de ambiente `GENO_DB`. As funções antigas do contrato (`dados/consultas.py`, que o motor usa) continuam e agora ignoram as baixas de ofício.
+Guia e saídas reais em [`geno_db/EXEMPLOS.md`](geno_db/EXEMPLOS.md). As consultas são parametrizadas, abrem o banco só para leitura e usam por padrão o período e o `limiar_recuo` do `config.yaml`. O caminho do banco vem do `config.yaml` (relativo à raiz do repositório) ou da variável de ambiente `GENO_DB`. As funções antigas do contrato (`dados/consultas.py`, usadas pelo motor) continuam e ignoram as baixas de ofício.
 
-### Etapa 4 — decisões por regra e métricas oficiais
+## Testes
 
 ```bash
-python -m dados.etl.decidir_parametros  # aplica as regras, grava config.yaml (seção consultas) e decisoes/DECISOES.md
-python -m dados.etl.construir_db        # no fim, gera dados/METRICAS.md e dados/metricas.json
+python -m pytest tests -v        # precisa do geno.duckdb já gerado
 ```
 
-- [`decisoes/DECISOES.md`](decisoes/DECISOES.md): uma seção por decisão, com a regra, os números que a sustentam e o valor escolhido (período 2021 a 2025, `limiar_recuo` 50, parâmetros de lacuna). Para rever uma decisão, altere o `config.yaml` e rode `construir_db`; as funções de consulta usam esses valores por padrão.
-- [`METRICAS.md`](METRICAS.md) e [`metricas.json`](metricas.json): números oficiais do recorte para o artigo. Saem só de consultas ao banco, com vírgula decimal no `.md` e ponto no `.json`, e o gerador aborta se os números forem incoerentes. Não edite à mão. O `METRICAS.md` da raiz, com as tabelas dos outros blocos, é outro arquivo e não é sobrescrito.
+`test_lgpd.py` (nada de contato, endereço, sócios ou razão social de MEI na `vw_publico`), `test_consultas.py` (contagens diretas, recuo, coortes completas), `test_metricas.py` (porcentagens, totais, repetibilidade, parâmetros) e `test_limiar.py` (nenhum texto nem código com limiar diferente do `config.yaml`).
+
+## Privacidade (LGPD)
+
+- Sócios nunca são baixados nem carregados. Telefones são descartados na leitura; do e-mail fica só o domínio.
+- O app lê **apenas** a `vw_publico`: `razao_social` é NULL em MEI e empresário individual (natureza 2135), e o nome fantasia some quando repete o nome do titular ou contém e-mail.
+- **`parquet/candidatos.parquet` é de uso interno do pipeline e nunca pode ser versionado nem publicado.** A coluna `razao_social` traz, em MEI e empresário individual, o nome do titular seguido do CPF completo (113 mil linhas). O arquivo é para o casamento CNPJ ↔ site; repasse só por canal privado.
 
 Referência: seções 3, 6, 7, 8 e 12 do relatório técnico.
