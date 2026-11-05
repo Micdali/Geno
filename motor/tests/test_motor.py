@@ -18,6 +18,11 @@ from motor import analisar as mod_analisar
 from motor import classificar, confianca, config, diferencial, embeddings, lacunas, llm, nicho
 
 PARAMS = {"max_abs": 2, "max_pct": 0.05, "minimo_nicho": 50}
+COMPARATIVO = ({"cnae": "8599603", "nome": "Informática", "aberturas": 100, "baixas": 70, "razao": 0.7},
+               {"cnae": "8593700", "nome": "Idiomas", "aberturas": 100, "baixas": 60, "razao": 0.6},
+               {"cnae": "8599699", "nome": "Outros cursos livres", "aberturas": 100, "baixas": 40, "razao": 0.4})
+CONTEXTO = {"sobrevivencia": [{"ano": 2015, "abertos": 10, "pct_ativos": 30.0}, {"ano": 2025, "abertos": 10, "pct_ativos": 80.0}],
+            "municipios": [{"municipio": "Rio de Janeiro", "ativos": 50}], "porte": {"mei": 30, "total": 50}}
 
 
 def vetorizar_falso(textos):
@@ -343,6 +348,8 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
                              "data_situacao": [pd.Timestamp("2024-05-01")] * n})
     monkeypatch.setattr(mod_analisar, "_publicos", lambda cs: publicos[publicos["cnpj"].isin(cs)])
     monkeypatch.setattr(mod_analisar, "_ativos_setor", lambda cnaes: 98)
+    monkeypatch.setattr(mod_analisar, "_comparativo_nichos", lambda: COMPARATIVO)
+    monkeypatch.setattr(mod_analisar, "_contexto_setor", lambda cnaes: CONTEXTO)
     monkeypatch.setattr(mod_analisar, "_saturacao", lambda cnaes: pd.DataFrame(
         {"ano": [2024, 2025], "aberturas": [10, 12], "baixas": [5, 6], "baixas_oficio": [1, 1],
          "saldo": [6, 7], "ativos_fim_ano": [100, 105]}))
@@ -353,7 +360,8 @@ def test_analisar_ponta_a_ponta_no_formato_do_contrato_4(monkeypatch):
     r = mod_analisar.analisar("escola de inglês online em grupo para 40+", recorte=RECORTE, progresso=etapas.append)
     assert etapas[0] == "Contando aberturas e baixas no setor" and etapas[-1].startswith("Escrevendo")
     assert any("60 escolas com site" in e for e in etapas)
-    assert r["saturacao"]["interpretacao"]["titulo"] and len(r["saturacao"]["interpretacao"]["paragrafos"]) == 3
+    assert r["saturacao"]["interpretacao"]["titulo"] and len(r["saturacao"]["interpretacao"]["paragrafos"]) == 4
+    assert r["saturacao"]["comparativo"] == list(COMPARATIVO) and r["saturacao"]["porte"] == CONTEXTO["porte"]
 
     assert set(r) == {"ideia", "recorte", "confianca", "concorrentes", "saturacao", "lacunas", "diferencial", "gerado_em"}
     assert set(r["recorte"]) == {"descricao", "atributos", "uf"} and r["recorte"]["uf"] == "RJ"
@@ -388,6 +396,8 @@ def test_analisar_sem_nenhum_concorrente(monkeypatch):
     monkeypatch.setattr(config, "parametros_lacuna", lambda: PARAMS)
     monkeypatch.setattr(mod_analisar, "_publicos", lambda cs: pytest.fail("não devia consultar o banco"))
     monkeypatch.setattr(mod_analisar, "_ativos_setor", lambda cnaes: 4199)
+    monkeypatch.setattr(mod_analisar, "_comparativo_nichos", lambda: COMPARATIVO)
+    monkeypatch.setattr(mod_analisar, "_contexto_setor", lambda cnaes: CONTEXTO)
     monkeypatch.setattr(mod_analisar, "_saturacao", lambda cnaes: pd.DataFrame(
         {"ano": [2025], "aberturas": [10], "baixas": [5], "baixas_oficio": [1], "saldo": [5], "ativos_fim_ano": [100]}))
     monkeypatch.setattr(diferencial.llm, "gerar_json", lambda *a, **kw: pytest.fail("sem concorrentes não chama o LLM"))
@@ -481,3 +491,30 @@ def test_interpretar_saturacao():
     texto = " ".join(mod_analisar.interpretar_saturacao(queda, 10)["paragrafos"]).lower()
     assert "abra" not in texto.split() and "validar" not in texto
     assert mod_analisar.interpretar_saturacao({"anos": []}, 0) == {"titulo": "", "paragrafos": []}
+
+
+def test_leitura_comparada_aos_outros_nichos():
+    bloco = {"anos": [2021, 2025], "aberturas": [100, 110], "baixas": [50, 60], "total_aberturas": 210,
+             "total_baixas": 130}
+    r = mod_analisar.interpretar_saturacao(bloco, 100, list(COMPARATIVO), ["8593700"])
+    assert r["paragrafos"][0].startswith("Comparado aos outros nichos de ensino do RJ, o nicho de Idiomas fecha mais")
+    assert "6,2 baixas a cada 10 aberturas, contra 5,7 na média dos 3 nichos" in r["paragrafos"][0]
+    assert "2ª maior taxa de fechamento" in r["paragrafos"][0]
+    assert len(mod_analisar.interpretar_saturacao(bloco, 100)["paragrafos"]) == 3  # sem comparativo: só o nicho
+
+
+def test_nome_municipio():
+    assert mod_analisar.nome_municipio("RIO DE JANEIRO") == "Rio de Janeiro"
+    assert mod_analisar.nome_municipio("NITEROI") == "Niterói"
+    assert mod_analisar.nome_municipio("ANGRA DOS REIS") == "Angra dos Reis"
+
+
+def test_ideia_fora_do_piloto_sem_perguntas(monkeypatch):
+    monkeypatch.setattr(embeddings, "aquecer", lambda: None)
+    gerar = lambda *a, **kw: ({"descricao": "Café", "atributos": RECORTE["atributos"], "cnaes": [], "no_piloto": False,  # noqa: E731
+                               "perguntas": [{"pergunta": "P?", "opcoes": ["a"], "multipla": False}]}, "m")
+    r = nicho.propor_recorte("um café", gerar=gerar)
+    assert r["no_piloto"] is False and r["perguntas"] == []
+    r = nicho.propor_recorte("escola", gerar=lambda *a, **kw: ({"descricao": "x", "atributos": RECORTE["atributos"],
+                                                               "cnaes": [], "perguntas": []}, "m"))
+    assert r["no_piloto"] is True  # sem o campo, conta como ensino

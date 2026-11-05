@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -38,6 +39,77 @@ def _saturacao(cnaes: list[str]) -> pd.DataFrame:
     from dados.geno_db import consultas
     ini, fim = config.periodo()
     return consultas.saturacao(cnaes, ano_ini=ini, ano_fim=fim)
+
+
+# Nomes curtos dos nichos do piloto, para os gráficos e a leitura comparada
+NOME_NICHO = {"8593700": "Idiomas", "8599603": "Informática", "8599605": "Concursos",
+              "8599604": "Treinamento gerencial", "8599699": "Outros cursos livres"}
+
+
+@lru_cache(maxsize=1)
+def _comparativo_nichos() -> tuple[dict, ...]:
+    """Aberturas, baixas (sem as de ofício) e razão baixas/aberturas de cada nicho do piloto no período.
+
+    Não depende da ideia: calculado uma vez por processo. Os 5 nichos estão inteiros no banco do Lucas,
+    então a comparação é justa (outros setores só aparecem lá quando têm ensino como atividade secundária).
+    """
+    linhas = []
+    for cnae in config.CNAES_PILOTO:
+        df = _saturacao([cnae])
+        ab, bx = int(df["aberturas"].sum()), int((df["baixas"] - df["baixas_oficio"]).sum())
+        linhas.append({"cnae": cnae, "nome": NOME_NICHO.get(cnae, cnae), "aberturas": ab, "baixas": bx,
+                       "razao": round(bx / ab, 3) if ab else 0.0})
+    return tuple(sorted(linhas, key=lambda l: -l["razao"]))
+
+
+def _contexto_setor(cnaes: list[str]) -> dict:
+    """Dados para os gráficos extras da tela de saturação, só com estabelecimentos dos CNAEs do recorte.
+
+    sobrevivencia: % ainda ativos por ano de abertura; municipios: os 5 com mais ativos;
+    porte: ativos que são MEI ou não (vw_publico.opcao_mei).
+    """
+    from dados.geno_db import consultas
+    con = consultas.conectar()
+    alvo = "cnae_principal IN (SELECT unnest(?::VARCHAR[]))"
+    try:
+        sobrevivencia = con.execute(
+            f"SELECT year(data_inicio) AS ano, count(*) AS abertos, "
+            f"count(*) FILTER (WHERE situacao = '02') AS ativos FROM vw_publico "
+            f"WHERE {alvo} AND year(data_inicio) BETWEEN ? AND ? GROUP BY 1 ORDER BY 1",
+            [list(cnaes), ANO_SOBREVIVENCIA, config.periodo()[1]]).fetchall()
+        municipios = con.execute(
+            f"SELECT municipio, count(*) FROM vw_publico WHERE {alvo} AND situacao = '02' "
+            f"GROUP BY 1 ORDER BY 2 DESC LIMIT 5", [list(cnaes)]).fetchall()
+        mei = con.execute(
+            f"SELECT count(*) FILTER (WHERE opcao_mei = 'S'), count(*) FROM vw_publico "
+            f"WHERE {alvo} AND situacao = '02'", [list(cnaes)]).fetchall()[0]
+    finally:
+        con.close()
+    return {
+        "sobrevivencia": [{"ano": int(a), "abertos": int(n), "pct_ativos": round(100 * at / n, 1)}
+                          for a, n, at in sobrevivencia if n],
+        "municipios": [{"municipio": nome_municipio(m), "ativos": int(n)} for m, n in municipios],
+        "porte": {"mei": int(mei[0]), "total": int(mei[1])},
+    }
+
+
+ANO_SOBREVIVENCIA = 2015  # primeiro ano de abertura do gráfico de sobrevivência
+
+# A Receita grava os municípios em maiúsculas e sem acento; os mais comuns do RJ, escritos direito
+_MUNICIPIOS = {"NITEROI": "Niterói", "PETROPOLIS": "Petrópolis", "NOVA IGUACU": "Nova Iguaçu",
+               "SAO GONCALO": "São Gonçalo", "SAO JOAO DE MERITI": "São João de Meriti", "MARICA": "Maricá",
+               "ITABORAI": "Itaboraí", "TERESOPOLIS": "Teresópolis", "MACAE": "Macaé", "MAGE": "Magé",
+               "NILOPOLIS": "Nilópolis", "ITAGUAI": "Itaguaí", "SEROPEDICA": "Seropédica",
+               "CAMPOS DOS GOYTACAZES": "Campos dos Goytacazes", "SAO PEDRO DA ALDEIA": "São Pedro da Aldeia"}
+
+
+def nome_municipio(nome: str | None) -> str:
+    """'RIO DE JANEIRO' -> 'Rio de Janeiro'; 'NITEROI' -> 'Niterói'."""
+    nome = (nome or "").strip().upper()
+    if nome in _MUNICIPIOS:
+        return _MUNICIPIOS[nome]
+    return " ".join(p.lower() if p.lower() in ("de", "da", "do", "das", "dos", "e") else p.capitalize()
+                    for p in nome.split())
 
 
 def _ativos_setor(cnaes: list[str]) -> int:
@@ -120,11 +192,13 @@ def _num(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
-def interpretar_saturacao(bloco: dict, n_setor: int) -> dict:
+def interpretar_saturacao(bloco: dict, n_setor: int, comparativo: list[dict] | None = None,
+                          cnaes: list[str] | None = None) -> dict:
     """O que os números de aberturas e baixas querem dizer na prática, em linguagem simples.
 
-    Regras fixas sobre os dados (sem LLM, para não inventar): razão baixas/aberturas, saldo e a
-    tendência do primeiro ao último ano. Nunca diz para abrir ou não abrir.
+    Regras fixas sobre os dados (sem LLM, para não inventar): razão baixas/aberturas, saldo, a
+    tendência do primeiro ao último ano e, com `comparativo`, a posição do nicho entre os nichos de
+    ensino do piloto. Nunca diz para abrir ou não abrir.
 
     Returns:
         {"titulo": frase-resumo, "paragrafos": [...]}; vazio se não houver dados.
@@ -162,13 +236,39 @@ def interpretar_saturacao(bloco: dict, n_setor: int) -> dict:
                      "o ritmo do setor está estável.")
 
     por_10 = max(0, round(razao * 10))
-    return {"titulo": titulo, "paragrafos": [
+    comparacao = _frase_comparativa(razao, comparativo, cnaes) if comparativo else None
+    return {"titulo": titulo, "paragrafos": [p for p in [comparacao] if p] + [
         f"De {a0} a {a1}, abriram {_num(total_ab)} estabelecimentos e {_num(total_bx)} deram baixa no CNPJ: "
         f"para cada 10 que abriram, cerca de {por_10} fecharam. O saldo foi de {'+' if saldo > 0 else '-'}"
         f"{_num(abs(saldo))} e hoje o setor tem {_num(n_setor)} estabelecimentos ativos no {config.UF_PILOTO}.",
         tendencia,
         pratica,
     ]}
+
+
+def _frase_comparativa(razao: float, comparativo: list[dict], cnaes: list[str] | None) -> str | None:
+    """Como o recorte se compara aos outros nichos de ensino: a frase que abre a leitura da saturação."""
+    outros = [c for c in comparativo if c["cnae"] not in (cnaes or [])]
+    if not outros:
+        return None
+    ab, bx = sum(c["aberturas"] for c in comparativo), sum(c["baixas"] for c in comparativo)
+    media = bx / ab if ab else 0
+    acima = sum(c["razao"] > razao for c in outros)
+    nomes = [NOME_NICHO.get(c, c) for c in (cnaes or [])]
+    nome = (f"o nicho de {nomes[0]}" if len(nomes) == 1 else f"os nichos de {' e '.join(nomes)}") if nomes else "o seu nicho"
+    plural = len(nomes) > 1
+    v = lambda r: f"{r * 10:.1f}".replace(".", ",")  # noqa: E731
+    verbo = "fecham" if plural else "fecha"
+    if razao > media * 1.05:
+        lado = f"{verbo} mais negócios do que a média do ensino livre"
+    elif razao < media * 0.95:
+        lado = f"{verbo} menos negócios do que a média do ensino livre"
+    else:
+        lado = f"{verbo} negócios no mesmo ritmo da média do ensino livre"
+    posicao = ("a maior taxa de fechamento" if acima == 0 else "a menor taxa de fechamento" if acima == len(outros)
+               else f"a {acima + 1}ª maior taxa de fechamento")
+    return (f"Comparado aos outros nichos de ensino do RJ, {nome} {lado}: {v(razao)} baixas a cada 10 "
+            f"aberturas, contra {v(media)} na média dos {len(comparativo)} nichos. É {posicao} entre eles.")
 
 
 def analisar(ideia: str, recorte: dict | None = None, progresso=None) -> dict:
@@ -191,7 +291,10 @@ def analisar(ideia: str, recorte: dict | None = None, progresso=None) -> dict:
     avisar("Contando aberturas e baixas no setor")
     saturacao = _bloco_saturacao(cnaes)
     n_setor = _ativos_setor(cnaes)
-    saturacao["interpretacao"] = interpretar_saturacao(saturacao, n_setor)
+    comparativo = list(_comparativo_nichos())
+    saturacao["comparativo"] = comparativo
+    saturacao.update(_contexto_setor(cnaes))
+    saturacao["interpretacao"] = interpretar_saturacao(saturacao, n_setor, comparativo, cnaes)
 
     classif = classificar.carregar()
     cnpjs, matriz = embeddings.carregar()

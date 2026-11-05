@@ -83,6 +83,19 @@ class T:
     CARGA_PREPARANDO_SUB = "Só na primeira abertura: leva uns 20 segundos."
     CARGA_RECORTE_ETAPAS = ["Lendo a sua ideia", "Identificando o nicho", "Preparando as perguntas"]
     SATURACAO_LEITURA = "O que isso quer dizer"
+    SAT_COMPARATIVO = "Para cada 10 que abriram, quantos fecharam"
+    SAT_COMPARATIVO_AJUDA = "2021 a 2025, nos nichos de ensino que o Geno analisa no RJ. O seu está em destaque."
+    SAT_ANO_A_ANO = "Aberturas e baixas, ano a ano"
+    SAT_SOBREVIVENCIA = "Quantos continuam abertos"
+    SAT_SOBREVIVENCIA_AJUDA = "De cada 100 que abriram em cada ano, quantos ainda estão ativos. Dos que abriram em {ano}, {pct} em 100 seguem abertos."
+    SAT_ONDE_QUEM = "Onde estão e quem são"
+    SAT_MUNICIPIOS = "Ativos por município"
+    SAT_PORTE = "Quanto da concorrência é MEI"
+    FORA_DO_PILOTO_TITULO = "O Geno ainda não analisa este ramo"
+    FORA_DO_PILOTO = ("Esta versão piloto só analisa ensino e treinamento no estado do Rio de Janeiro: cursos, "
+                      "aulas, escolas e capacitação. A sua ideia parece ser de outro ramo, e uma análise aqui "
+                      "compararia você com escolas, o que daria resultados sem sentido.")
+    BOTAO_OUTRA_IDEIA = "Escrever outra ideia"
     BOTAO_CORRIGIR_RECORTE = "Corrigir"
 
     # ------------------------------------------------------------------

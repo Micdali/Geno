@@ -164,6 +164,16 @@ h1, h2, h3 {{
 @media (prefers-reduced-motion: reduce) {{ .geno-carga-etapa {{ animation: none; }} }}
 iframe[title="st.iframe"], [data-testid="stIFrame"] {{ background: transparent; }}
 
+/* Iframe que só leva a página ao topo: não ocupa espaço */
+.st-key-rolar_topo {{ height: 0; overflow: hidden; margin: 0 !important; padding: 0; }}
+.st-key-rolar_topo [data-testid="stElementContainer"] {{ height: 0; }}
+
+/* Gráficos em SVG (app/geno/graficos.py) */
+.geno-grafico {{ margin: .4rem 0 .2rem; }}
+.geno-legenda {{ display: flex; gap: 1.2rem; font-size: .95rem; color: rgba(250,243,231,.75); margin: .3rem 0 1rem; }}
+.geno-legenda i {{ display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; margin-right: .45rem; }}
+.geno-secao-menor {{ font-weight: 700; font-size: 1.02rem; color: rgba(250,243,231,.85); margin-bottom: .6rem; }}
+
 /* Leitura da saturação: o que os números querem dizer */
 .geno-leitura {{ border-left: 4px solid {CORES["menta"]}; padding: .2rem 0 .2rem 1.4rem; margin: .4rem 0 .6rem; }}
 .geno-leitura-rotulo {{ font-size: .95rem; font-weight: 700; color: {CORES["menta"]}; margin-bottom: .3rem; }}

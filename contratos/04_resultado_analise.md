@@ -41,6 +41,8 @@ Tudo o que a v0 tinha continua igual; o app pode ignorar os extras.
 - `concorrentes[].situacao` também pode ser `inapta`, `suspensa` ou `nula` (vêm da Receita).
 - `lacunas[].atendimento`: para cada CNPJ de `cnpjs_base`, se a empresa atende cada atributo da combinação. `null` = o site não diz.
 - `confianca.n_empresas` conta só estabelecimentos ativos (situação 02) com o CNAE principal do recorte.
+- `saturacao.comparativo`, `sobrevivencia`, `municipios` e `porte` (04/11/2026): a razão baixas/aberturas de cada nicho de ensino do piloto, o % ainda ativo por ano de abertura, os 5 municípios com mais ativos e quantos ativos são MEI. Alimentam os gráficos da tela de saturação.
+- recorte de `propor_recorte` traz `no_piloto` (bool): false quando a ideia não é de ensino; o app avisa e não analisa.
 - `saturacao.interpretacao` (04/11/2026): `{titulo, paragrafos: [...]}`, a leitura em linguagem simples do que aberturas e baixas querem dizer na prática. Calculada por regras fixas sobre os números, sem LLM.
 - `motor.analisar(ideia, recorte=None, progresso=None)`: `progresso`, opcional, recebe o texto de cada etapa real da análise (o app mostra na animação de carregamento).
 - `concorrentes` pode vir vazio e `lacunas` também: nesse caso `confianca.texto` explica que os dados são insuficientes, e `diferencial` traz um texto fixo, sem LLM.

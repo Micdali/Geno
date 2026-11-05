@@ -18,7 +18,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 APP = Path(__file__).resolve().parent
@@ -27,6 +26,7 @@ sys.path[:0] = [str(RAIZ), str(APP)]  # motor/ está na raiz; geno/ (tema e text
 
 from geno.tema import (CORES, aplicar_cabecalho, aplicar_tema, aplicar_tema_home, botao_principal,  # noqa: E402
                        caixa_confianca, card_lacuna, divisor)
+from geno import graficos  # noqa: E402
 from geno.carregamento import animacao  # noqa: E402
 from geno.textos import T  # noqa: E402
 from motor import embeddings  # noqa: E402
@@ -126,7 +126,22 @@ for chave, valor in {"tela": 1, "ideia": "", "recorte": None, "respostas": {}, "
 
 def ir(tela: int):
     s.tela_anterior, s.tela = s.tela, tela
+    s.rolar_topo = s.get("rolar_topo", 0) + 1  # a próxima tela abre do topo
     st.rerun()
+
+
+def rolar_para_o_topo():
+    """Leva a página ao topo depois de trocar de tela (o Streamlit mantém a rolagem da tela anterior).
+
+    Um iframe minúsculo com um script que rola a página do app; o número muda a cada troca para o
+    navegador recarregar o iframe e rodar o script de novo.
+    """
+    st.container(key="rolar_topo").iframe(f"""<script>/* {s.rolar_topo} */
+      const d = window.parent.document;
+      for (const el of [d.querySelector('[data-testid="stMain"]'), d.querySelector('.stMain'), d.scrollingElement])
+        if (el) el.scrollTo({{top: 0}});
+      window.parent.scrollTo(0, 0);
+    </script>""", height=1)
 
 
 def num(n: int) -> str:
@@ -205,6 +220,13 @@ def tela_1():
 
 def tela_2():
     r, a = s.recorte, s.recorte["atributos"]
+    if r.get("no_piloto") is False:  # ideia de outro ramo: avisa e não analisa
+        st.title(T.FORA_DO_PILOTO_TITULO)
+        st.markdown(f"**Sua ideia:** _{s.ideia}_")
+        st.markdown(f'<div class="geno-leitura"><p>{T.FORA_DO_PILOTO}</p></div>', unsafe_allow_html=True)
+        if navegacao(None, T.BOTAO_OUTRA_IDEIA, "fora_do_piloto"):
+            nova_ideia()
+        return
     st.title(T.RECORTE_TITULO)
     st.markdown(f"**Sua ideia:** _{s.ideia}_")
     if r.get("falhou"):
@@ -473,19 +495,43 @@ def tela_5():
                     f'<h3>{html.escape(leitura["titulo"])}</h3>'
                     + "".join(f"<p>{html.escape(p)}</p>" for p in leitura["paragrafos"]) + "</div>",
                     unsafe_allow_html=True)
-        divisor("Os números, ano a ano")
-    fig = go.Figure([go.Bar(name="Aberturas", x=sat["anos"], y=sat["aberturas"], marker_color=CORES["menta"]),
-                     go.Bar(name="Baixas", x=sat["anos"], y=sat["baixas"], marker_color=CORES["coral"])])
-    fig.update_layout(barmode="group", height=380, margin=dict(t=20, b=20), legend=dict(orientation="h"),
-                      xaxis=dict(type="category"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                      font=dict(family="Manrope, sans-serif", color=CORES["creme"], size=15),
-                      yaxis=dict(gridcolor="rgba(250,243,231,.12)", zeroline=False))
-    st.plotly_chart(fig, width="stretch")
+    cnaes_ideia = set(s.resultado["recorte"].get("cnaes") or s.recorte.get("cnaes") or [])
+    if sat.get("comparativo"):  # o nicho da ideia contra os outros nichos de ensino do piloto
+        divisor(T.SAT_COMPARATIVO)
+        st.caption(T.SAT_COMPARATIVO_AJUDA)
+        st.markdown(graficos.barras_horizontais(
+            [{"nome": c["nome"] + (" (sua ideia)" if c["cnae"] in cnaes_ideia else ""), "valor": c["razao"] * 10,
+              "destaque": c["cnae"] in cnaes_ideia} for c in sat["comparativo"]],
+            formato=lambda v: f"{v:.1f}".replace(".", ","), rotulo=T.SAT_COMPARATIVO), unsafe_allow_html=True)
+    divisor(T.SAT_ANO_A_ANO)
+    st.markdown(graficos.barras_anuais(sat["anos"], sat["aberturas"], sat["baixas"]), unsafe_allow_html=True)
     periodo = f"{sat['anos'][0]}–{sat['anos'][-1]}"
     c1, c2, c3 = st.columns(3)
     c1.metric(f"Aberturas ({periodo})", num(sat["total_aberturas"]))
     c2.metric(f"Baixas ({periodo})", num(sat["total_baixas"]))
-    c3.metric("Saldo no período", num(saldo))
+    c3.metric("Saldo no período", ("+" if saldo > 0 else "") + num(saldo))
+    if len(sat.get("sobrevivencia") or []) > 1:
+        sob = sat["sobrevivencia"]
+        divisor(T.SAT_SOBREVIVENCIA)
+        st.caption(T.SAT_SOBREVIVENCIA_AJUDA.format(ano=sob[0]["ano"], pct=num(round(sob[0]["pct_ativos"]))))
+        st.markdown(graficos.linha_sobrevivencia(sob), unsafe_allow_html=True)
+    if sat.get("municipios") or (sat.get("porte") or {}).get("total"):
+        divisor(T.SAT_ONDE_QUEM)
+        c1, c2 = st.columns(2, gap="large")
+        if sat.get("municipios"):
+            c1.markdown(f'<div class="geno-secao-menor">{T.SAT_MUNICIPIOS}</div>' + graficos.barras_horizontais(
+                [{"nome": m["municipio"], "valor": m["ativos"], "destaque": i == 0}
+                 for i, m in enumerate(sat["municipios"])],
+                rotulo=T.SAT_MUNICIPIOS, cor_destaque=CORES["menta"], cor_neutra="rgba(143,211,189,.45)",
+                largura=380, x_barras=140),
+                unsafe_allow_html=True)
+        porte = sat.get("porte") or {}
+        if porte.get("total"):
+            outros = porte["total"] - porte["mei"]
+            c2.markdown(f'<div class="geno-secao-menor">{T.SAT_PORTE}</div>' + graficos.rosca(
+                porte["mei"], porte["total"], T.SAT_PORTE,
+                [f"{num(porte['mei'])} MEIs", "profissionais autônomos",
+                 f"{num(outros)} empresas", "fora do MEI"]), unsafe_allow_html=True)
     divisor()
     if s.resultado["confianca"].get("usou_setor_amplo"):
         st.info("Estes números são do setor inteiro (CNAE), não só do seu nicho.")
@@ -534,6 +580,8 @@ def tela_6():
 
 if (s.tela >= 4 and not s.resultado) or (s.tela in (2, 3) and not s.recorte):
     s.tela = 1
+if s.get("rolar_topo"):
+    rolar_para_o_topo()
 if s.tela > 1:  # a página inicial não mostra o progresso
     linha_do_tempo()
 if s.get("carga") and s.carga["tipo"] in ("recorte", "refinar"):

@@ -170,3 +170,30 @@ def test_pergunta_de_uma_opcao_com_outro_e_botao_unico(monkeypatch):
     at.text_input(key=next(k for k in at.session_state if str(k).endswith("_outro"))).input("Niterói").run()
     clicar(at, T.BOTAO_CONFIRMAR_RECORTE)
     assert recebidas[-1] == {"Onde?": "Niterói"} and at.session_state.tela == 4
+
+
+def test_ideia_fora_do_piloto_avisa_e_nao_analisa(monkeypatch):
+    nicho = types.ModuleType("motor.nicho")
+    nicho.propor_recorte = lambda ideia, respostas=None: json.loads(EXEMPLO.read_text(encoding="utf-8"))["recorte"] | {
+        "perguntas": [], "no_piloto": False}
+    monkeypatch.setitem(sys.modules, "motor.nicho", nicho)
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    at.text_area[0].input("Um café que também vende plantas").run()
+    clicar(at, T.BOTAO_ANALISAR)
+    assert at.title[0].value == T.FORA_DO_PILOTO_TITULO
+    assert T.BOTAO_CONFIRMAR_RECORTE not in [b.label for b in at.button]
+    clicar(at, T.BOTAO_OUTRA_IDEIA)
+    assert at.session_state.tela == 1
+
+
+def test_graficos_svg():
+    from geno import graficos
+    svg = graficos.barras_anuais([2021, 2022], [619, 576], [291, 296])
+    assert svg.count("<rect") == 4 and ">619<" in svg and "Aberturas" in svg
+    svg = graficos.barras_horizontais([{"nome": "Idiomas <b>", "valor": 6.1, "destaque": True},
+                                       {"nome": "Outros", "valor": 4.8}], formato=lambda v: f"{v:.1f}")
+    assert "&lt;b&gt;" in svg and ">6.1<" in svg  # texto escapado
+    assert "31 de 100" in graficos.linha_sobrevivencia([{"ano": 2015, "pct_ativos": 31.4},
+                                                          {"ano": 2020, "pct_ativos": 43.4},
+                                                          {"ano": 2025, "pct_ativos": 77.2}])
+    assert ">61%<" in graficos.rosca(2559, 4199, "MEI", ["a", "b"])

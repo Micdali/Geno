@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from . import config, embeddings, llm
 
-PROMPT_VERSAO = "v2"  # v2: perguntas de múltipla escolha (multipla) e sem "Outro" nas opções
+PROMPT_VERSAO = "v3"  # v2: perguntas de múltipla escolha e sem "Outro"; v3: no_piloto (ideia fora do ensino)
 MAX_PERGUNTAS = 3
 
 SCHEMA = {
@@ -27,6 +27,7 @@ SCHEMA = {
             "required": ["publico", "produto_servico", "canal"],
         },
         "cnaes": {"type": "array", "items": {"type": "string", "enum": list(config.CNAES_PILOTO)}},
+        "no_piloto": {"type": "boolean"},  # false: a ideia não é de ensino e o Geno não sabe analisar
         "perguntas": {
             "type": "array",
             "items": {
@@ -38,7 +39,7 @@ SCHEMA = {
             },
         },
     },
-    "required": ["descricao", "atributos", "cnaes", "perguntas"],
+    "required": ["descricao", "atributos", "cnaes", "no_piloto", "perguntas"],
 }
 
 
@@ -70,5 +71,6 @@ def propor_recorte(ideia: str, respostas: dict[str, str] | None = None, gerar=No
     for p in perguntas:  # "Outro" é da tela, com texto livre; o LLM às vezes o inclui mesmo assim
         p["opcoes"] = [o for o in p.get("opcoes", []) if o.strip().lower().rstrip(".:") != "outro"]
         p["multipla"] = bool(p.get("multipla"))
-    r["perguntas"] = perguntas
+    r["no_piloto"] = r.get("no_piloto") is not False  # sem o campo (LLM antigo, testes): conta como ensino
+    r["perguntas"] = perguntas if r["no_piloto"] else []
     return r
