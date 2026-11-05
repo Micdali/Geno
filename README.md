@@ -31,7 +31,7 @@ Cada pasta é um bloco com **um dono**. Os blocos só se comunicam pelos contrat
 
 ## Como rodar
 
-Para a apresentação de 05/11/2026, o repositório traz tudo o que o app precisa para rodar igual à máquina do Micael: o `.env` com a chave da OpenAI, o banco `dados/geno.duckdb` e o cache do motor (`motor/cache/`). **A chave do `.env` é temporária: será revogada na noite de 05/11/2026.** Depois disso, crie a sua e cole no `.env`.
+O repositório traz o banco `dados/geno.duckdb` e o cache do motor (`motor/cache/`). O `.env` com a chave da OpenAI **não** vem no repositório: copie o `.env.example` para `.env` e cole a sua chave (o `.env` fica só na sua máquina, nunca commitado).
 
 ```bash
 # 1. Ambiente (Python 3.11 ou mais novo; testado no 3.14)

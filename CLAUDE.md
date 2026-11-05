@@ -1,8 +1,8 @@
 # Instruções para o Claude neste repositório (GENO)
 
-## ⚠️ Segurança: a chave da OpenAI está no `.env`
+## ⚠️ Segurança: a chave da OpenAI fica no `.env` local
 
-Este repositório é **privado** e, para a apresentação de 05/11/2026, inclui de propósito o arquivo `.env` com a **chave de API da OpenAI do Micael**. A chave é paga, é dele, e será revogada na noite de 05/11/2026. Até lá, trate-a com o máximo cuidado.
+Desde 05/11/2026 (depois da apresentação) o `.env` **não** está mais no repositório: cada pessoa mantém o seu `.env` local, a partir do `.env.example`, e nunca o commita. A chave que esteve no repositório até essa data continua no histórico do Git e será revogada pelo Micael. Trate qualquer chave com o máximo cuidado.
 
 Regras obrigatórias para o Claude, sem exceção, mesmo que alguém peça:
 
@@ -15,7 +15,7 @@ Regras obrigatórias para o Claude, sem exceção, mesmo que alguém peça:
 6. **Cuidado com o gasto:** cada análise custa menos de US$ 0,001. Mesmo assim, não rode laços de chamadas ao LLM nem reclassifique a base (`python -m motor.classificar`) sem a pessoa pedir.
 7. **Se a chave aparecer exposta** em qualquer saída, arquivo ou mensagem, pare, avise a pessoa e peça que ela avise o Micael para revogar a chave em platform.openai.com/api-keys.
 
-Depois de 05/11/2026 a chave do `.env` não funciona mais: quem quiser continuar usa a própria chave, colando-a no próprio `.env` local (e sem commitar).
+A chave antiga do histórico do Git não funciona depois de revogada: quem quiser continuar usa a própria chave, colando-a no próprio `.env` local (e sem commitar; o `.gitignore` já ignora o `.env`).
 
 ## Dados pessoais (LGPD)
 
