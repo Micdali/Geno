@@ -18,7 +18,7 @@ openai>=3.44              # SDK oficial da OpenAI (provedor padrão do motor)
 google-genai>=1.25         # SDK do Gemini, reserva (HttpRetryOptions e response_json_schema exigem 1.25+)
 
 # App (app/) — se a stack escolhida for Streamlit
-streamlit>=1.40
+streamlit>=1.66            # o app usa st.iframe e seletores data-testid desta versão
 plotly>=5.24
 
 # Testes

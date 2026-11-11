@@ -72,6 +72,18 @@ def _temporario(e: Exception) -> bool:
     return isinstance(e, errors.ServerError) or codigo in (408, 429) or "Timeout" in type(e).__name__
 
 
+def _sem_acesso(e: Exception) -> bool:
+    """Sem chave, chave inválida ou revogada (401/403): o LLM está fora para este usuário. O motor
+    segue sem as partes do LLM (recorte à mão, sem variações nem diferencial) em vez de quebrar."""
+    if isinstance(e, (openai.AuthenticationError, openai.PermissionDeniedError)):
+        return True
+    if type(e) is openai.OpenAIError:  # o SDK levanta o OpenAIError puro quando falta OPENAI_API_KEY
+        return True
+    if isinstance(e, errors.ClientError) and getattr(e, "code", None) in (401, 403):
+        return True
+    return isinstance(e, ValueError) and "api key" in str(e).lower()  # Gemini sem GEMINI_API_KEY
+
+
 def _gerar_gemini(prompt, schema, modelo, sistema, temperatura, timeout_s) -> str:
     cfg = types.GenerateContentConfig(
         system_instruction=sistema,
@@ -123,6 +135,8 @@ def gerar_json(prompt: str, schema: dict, modelos: list[str], sistema: str | Non
             except json.JSONDecodeError as e:  # raro com schema; tenta de novo
                 ultimo = e
             except Exception as e:
+                if _sem_acesso(e):
+                    raise LLMIndisponivel(f"Sem acesso ao LLM ({type(e).__name__}): confira a chave no .env") from e
                 if not _temporario(e):
                     raise
                 ultimo = e

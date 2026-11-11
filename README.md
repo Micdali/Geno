@@ -33,6 +33,8 @@ Cada pasta é um bloco com **um dono**. Os blocos só se comunicam pelos contrat
 
 O repositório traz o banco `dados/geno.duckdb` e o cache do motor (`motor/cache/`). O `.env` com a chave da OpenAI **não** vem no repositório: copie o `.env.example` para `.env` e cole a sua chave (o `.env` fica só na sua máquina, nunca commitado).
 
+**Sem chave, o app também roda**, em modo reduzido: a pessoa descreve o recorte à mão na tela 2 (sem as perguntas do LLM), e a análise mostra concorrentes, saturação e lacunas da ideia, mas não as variações nem o resumo do diferencial.
+
 ```bash
 # 1. Ambiente (Python 3.11 ou mais novo; testado no 3.14)
 python -m venv .venv
@@ -49,7 +51,7 @@ streamlit run app/app.py
 
 ## Dados e privacidade
 
-- Os arquivos da Receita, o `geno.duckdb` e os Parquet **não vão para o Git** (ver `.gitignore`). Cada um recria o banco localmente com o script de `dados/`.
+- Os arquivos brutos da Receita não vão para o Git. O banco já pronto (`dados/geno.duckdb`) e o cache do motor vão, para o app rodar logo depois do clone; o banco pode ser recriado com o script de `dados/`.
 - Dados de sócios não são carregados. Razão social de MEI não é exibida (LGPD).
 - Fonte: Receita Federal do Brasil — Dados Abertos do CNPJ, licença CC-BY.
 

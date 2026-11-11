@@ -307,6 +307,24 @@ def test_erro_temporario_da_openai():
     assert not llm._temporario(ValueError("schema"))
 
 
+def test_sem_chave_vira_llm_indisponivel(monkeypatch):
+    """Sem chave ou com chave revogada, o motor recebe LLMIndisponivel e segue sem as partes do LLM."""
+    req = httpx.Request("POST", "https://api.openai.com/v1/responses")
+    erros = [openai.OpenAIError("Missing credentials"),
+             openai.AuthenticationError("x", response=httpx.Response(401, request=req), body=None)]
+    monkeypatch.setattr(config, "LLM_PROVEDOR", "openai")
+    for erro in erros:
+        def falha(*a, erro=erro):
+            raise erro
+        monkeypatch.setattr(llm, "_gerar_openai", falha)
+        with pytest.raises(llm.LLMIndisponivel):
+            llm.gerar_json("p", {"type": "object"}, ["a"], tentativas=1)
+    monkeypatch.setattr(llm, "_gerar_openai", lambda *a: (_ for _ in ()).throw(
+        openai.BadRequestError("x", response=httpx.Response(400, request=req), body=None)))
+    with pytest.raises(openai.BadRequestError):  # erro de verdade continua aparecendo
+        llm.gerar_json("p", {"type": "object"}, ["a"], tentativas=1)
+
+
 def test_gerar_json_usa_o_provedor_e_troca_de_modelo(monkeypatch):
     req = httpx.Request("POST", "https://api.openai.com/v1/responses")
     chamadas = []
